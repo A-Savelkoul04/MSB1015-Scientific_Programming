@@ -12,7 +12,6 @@ Make sure that the previous file has been run and has saved the rds files (GSE27
 ```{r clear_global}
 rm(list=ls())
 ```
-
 #Setting the working directory (wd)
 Other files are assumed to be located in the same, or downstream maps from the location of this file. The location of this file is used as a reference point to find the other files. 
 ```{r working_directory}
@@ -30,7 +29,6 @@ As I will be using a project (renv) for the MSB1015 project, I check first that 
 #For cleanliness the checks, installing and loading of the various libraries is in a separate .R file. This file is assumed to be in the same map as this file (in the wd).
 source("libraries.R")
 ```
-
 ```{r library_installation}
 #Use the function to install the libraries
 Fun_install_libraries()
@@ -71,7 +69,8 @@ Fun_in_out_check()
 
 ```
 #Settings
-Any global settings that are used are set here. 
+Any global settings that are used are set here.
+*Please make sure the settings are the same between the files when applicable* 
 ```{r settings}
 #-----#
 #In multiple sections:
@@ -85,6 +84,7 @@ RUN_PLOTS <- TRUE
 #Settings check
 Check if the values that were given in the settings are allowed
 ```{r}
+#TAG: Split the settings checks into multiple settings checks so that only relevant settings are checked
 #Fun_settings_check2()
 ```
 #Load the data from the previous file
@@ -93,17 +93,6 @@ data <- readRDS(paste0(OUTPUT_FILE_LOCATION,"/GSE270199_imputed.rds"))
 metadata <- readRDS(paste0(OUTPUT_FILE_LOCATION,"/GSE270199_redmeta.rds"))
 ```
 
-
-
-
-
-
-
-
-
-
-#TAG: Put what is below this into a different file:
---> MSB1015-GSE270199_Processing.Rmd
 
 
 #PCA on only disease
