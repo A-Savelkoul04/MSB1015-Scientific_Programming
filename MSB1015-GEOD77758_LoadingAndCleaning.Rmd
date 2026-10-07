@@ -1,0 +1,314 @@
+---
+title: "MSB1015 - GEOD77758 Loading and Cleaning"
+author: "Anne Savelkoul - i6326700"
+date: "2026-09"
+---
+
+#Downloading the data
+Download GSE270199_COL3A1_normalizedCounts.txt.gz from https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE270199. Unzip it and place it into the INPUT_FILE_LOCATION you specify in File locations. 
+
+Download the Metadata of GSE270199_COL3A1_normalizedCounts.txt.gz from https://www.ncbi.nlm.nih.gov/Traces/study/?acc=PRJNA1125404&o=acc_s%3Aa. Unzip it and place it into the INPUT_FILE_LOCATION you specify in File locations. 
+*RENAME IT TO "GSE270199_SraRunTable.csv"* instead of "SraRunTable.csv" to prevent multiple files being names "SraRunTable.csv".
+
+Download the 22 raw data files from https://www.ebi.ac.uk/biostudies/ArrayExpress/studies/E-GEOD-77758?query=%22hypermobility%20syndrome%22. Unzip the files and place them into the INPUT_FILE_LOCATION you specify in File locations.
+
+Download the Metadata of GEOD77758 from https://www.ebi.ac.uk/biostudies/ArrayExpress/studies/E-GEOD-77758?query=%22hypermobility%20syndrome%22 as well. Look in "MAGE-TAB Files" and download the file named "E-GEOD-77758.sdrf.txt". 
+
+*Unless specified otherwise, the code attempts to load in the default names of the files. If the names are changed in other ways then adjust the code in Load data.*
+
+
+
+#Setting the working directory (wd)
+Other files are assumed to be located in the same, or downstream maps from the location of this file. The location of this file is used as a reference point to find the other files. 
+```{r working_directory}
+#download and load the package for setting the working directory to the current file
+if (!require("rstudioapi", quietly = TRUE))
+  install.packages("rstudioapi")
+library(rstudioapi)  
+
+#Set the wd to the location of this file  
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+```
+#Library installations and loading 
+As I will be using a project (renv) for the MSB1015 project, I check first that the packages that need to be installed are installed.
+```{r library_R_file, include=FALSE}
+#For cleanliness the checks, installing and loading of the various libraries is in a separate .R file. This file is assumed to be in the same map as this file (in the wd).
+source("libraries.R")
+```
+```{r library_installation}
+#Use the function to install the libraries
+Fun_install_libraries()
+```
+```{r library_loading}
+#Use the function to load the libraries
+Fun_load_libraries()
+```
+#Load in the checks R file
+```{r checks}
+#There are some functions to run checks for various things in this separate .R file.
+#These are not in the main code as they create quite a bit of bloat that makes the code more difficult to read.
+#These are not reusable functions!
+source("checks.R")
+```
+#Load in the custom_functions R file
+```{r custom_functions}
+#There are some functions to run checks for various things in this separate .R file.
+#These are not in the main code to make the main script less bloated and the custom functions easier to find (instead of all of them being spread over the Rmd file).
+source("custom_functions.R")
+```
+#File locations
+Set the locations of the files that are loaded in and the locations on where the outputs will go. 
+This code will also do a check that the given locations are findable. 
+```{r file_locations}
+#Make sure to save the wd so that it is easy to use to set file locations
+working_directory <- getwd()
+
+#The default INPUT_FILE_LOCATION is in a map where this file is also saved.
+INPUT_FILE_LOCATION <- paste0(working_directory,"/INPUTS")
+#The default OUTPUT_FILE_LOCATION is in a map where this file is also saved.
+OUTPUT_FILE_LOCATION <- paste0(working_directory,"/OUTPUTS")
+
+#-----#
+
+#Make sure that the file locations can be found and in the case of the outputs create a dir if it doesn't exist
+Fun_in_out_check()
+
+```
+#Settings
+Any global settings that are used are set here. 
+```{r settings}
+#-----#
+#In section: remove_missing
+  #Missing values are removed from GSE270199, these are the thresholds that are permitted for the gene to be kept. 
+#Set the percentage (0 to 100) of zeros that are allowed in the healthy group
+  #There are 4 values, setting it to 25 means that 3/4 need to be non-zero
+allow_zeros_in_healthy_percent <- 25
+#Set the percentage (0 to 100) of zeros that are allowed in the EDS group
+  #There are 10 values, setting it to 20 means that 8/10 need to be non-zero
+allow_zeros_in_EDS_percent <- 20
+#-----#
+```
+#Settings check
+Check if the values that were given in the settings are allowed
+```{r}
+Fun_settings_check()
+```
+#Load GEOD77758 data
+The data is loaded here. 
+```{r load_data_GEOD77758}
+
+#Get all the files with a .CEL extention and HuGenes in the name
+cels.HuGene <- list.files(paste0(INPUT_FILE_LOCATION,"/"), pattern = c("HuGene", "CEL"))
+#Get all the files with a .CEL extention and mi in the name
+cels.miRNA <- list.files(paste0(INPUT_FILE_LOCATION,"/"), pattern = c("miRNA", "CEL"))
+
+#Check if the files could be found
+Fun_GEOD77758_findability_check()
+
+
+#-----# 
+
+#Read the .CELL files
+GEOD77758.HuGene.all <- read.celfiles(verbose=FALSE, filenames=paste0(INPUT_FILE_LOCATION,"/", cels.HuGene))
+
+#Use rma to get the assayData expression out of the GEOD77758.all
+GEOD77758.HuGene.rma <- rma(GEOD77758.HuGene.all, background=TRUE, normalize=TRUE, subset=NULL, target="core")
+
+GEOD77758.HuGene <- GEOD77758.HuGene.rma@assayData$exprs
+
+#Simplify the colnames
+GEOD77758.colnames <- colnames(GEOD77758.HuGene)
+
+GEOD77758.colnames <- gsub(pattern = "_EDS-HT_Patient_.*_HuGene-1_0-st-v1_.CEL", replacement = "", x = GEOD77758.colnames)
+GEOD77758.colnames <- gsub(pattern = "_Control_.*_HuGene-1_0-st-v1_.CEL", replacement = "", x = GEOD77758.colnames)
+
+colnames(GEOD77758.HuGene) <- GEOD77758.colnames
+
+#Remove cels.HuGene as it is no longer used
+rm(cels.HuGene)
+#Remove GEOD77758.HuGene.all and GEOD77758.HuGene.rma as they are no longer used
+rm(GEOD77758.HuGene.all, GEOD77758.HuGene.rma)
+#Remove GEOD77758.colnames as it is no longer used
+rm(GEOD77758.colnames)
+
+#-----# 
+
+#Read the .CELL files
+GEOD77758.miRNA.all <- read.celfiles(verbose=FALSE, filenames=paste0(INPUT_FILE_LOCATION,"/", cels.miRNA))
+
+#Use rma to get the assayData expression out of the GEOD77758.all
+GEOD77758.miRNA.rma <- rma(GEOD77758.miRNA.all, background=TRUE, normalize=TRUE, subset=NULL)
+
+GEOD77758.miRNA <- GEOD77758.miRNA.rma@assayData$exprs
+
+#Simplify the colnames
+GEOD77758.colnames <- colnames(GEOD77758.miRNA)
+
+GEOD77758.colnames <- gsub(pattern = "_EDS-HT_Patient_.*_miRNA-3_0_.CEL", replacement = "", x = GEOD77758.colnames)
+GEOD77758.colnames <- gsub(pattern = "_Control_.*_miRNA-3_0_.CEL", replacement = "", x = GEOD77758.colnames)
+
+colnames(GEOD77758.miRNA) <- GEOD77758.colnames
+
+#Remove cels.miRNA as it is no longer used
+rm(cels.miRNA)
+#Remove GEOD77758.miRNA.all and GEOD77758.miRNA.rma as they are no longer used
+rm(GEOD77758.miRNA.all, GEOD77758.miRNA.rma)
+#Remove GEOD77758.colnames as it is no longer used
+rm(GEOD77758.colnames)
+
+#-----# 
+
+#Load the metadata for GEOD77758
+GEOD77758.meta <- read.delim(paste0(INPUT_FILE_LOCATION,"/E-GEOD-77758.sdrf.txt"))
+rownames(GEOD77758.meta) <- GEOD77758.meta[,"Assay.Name"]
+
+#-----# 
+
+#Split the GEOD77758.meta into GEOD77758.HuGene.meta and GEOD77758.miRNA.meta
+GEOD77758.HuGene.meta <- GEOD77758.meta[grep("HuGene", GEOD77758.meta[,"Array.Data.File"]),]
+GEOD77758.miRNA.meta <- GEOD77758.meta[grep("miRNA", GEOD77758.meta[,"Array.Data.File"]),]
+
+#Check that the people in GEOD77758 are also in GEOD77758.meta and that the people in GEOD77758 are also in GEOD77758.meta
+Fun_GEOD77758_meta_check()
+
+```
+
+#Metadata
+Check what is available in the metadata and remove un-relevant information / add information that could be useful.
+```{r metadata}
+#Check metadata
+
+#Break up the output
+cat("\n-----\n")
+#-----# 
+
+#Create reduced metadata (redmeta) that removes columns that only contain a single thing
+keep <- NULL
+for (column in 1:ncol(GEOD77758.HuGene.meta)) {
+  keep <- c(keep,length(unique(GEOD77758.HuGene.meta[,column])) != 1)
+}
+GEOD77758.HuGene.redmeta <- GEOD77758.HuGene.meta[,keep]
+
+#Remove ones that are fully unique (cannot check for any batch effects on that anyway)
+keep <- NULL
+for (column in 1:ncol(GEOD77758.HuGene.redmeta)) {
+  keep <- c(keep,length(unique(GEOD77758.HuGene.redmeta[,column])) != nrow(GEOD77758.HuGene.redmeta))
+}
+
+GEOD77758.HuGene.redmeta <- GEOD77758.HuGene.redmeta[,keep]
+
+#Manually remove colums that are unrelevant
+cat("Remaining columns after automatic removal in GEOD77758.HuGene.redmeta:\n", colnames(GEOD77758.HuGene.redmeta),"\n")
+cat("\"Characteristics..disease.state.\" and \"FactorValue..disease.state.\" contain the same data, only keep \"Characteristics..disease.state.\"\n")
+GEOD77758.HuGene.redmeta <- GEOD77758.HuGene.redmeta["Characteristics..disease.state."]
+
+#Break up the output
+cat("\n-----\n")
+
+#Rename the remaining colnames for ease of use
+colnames(GEOD77758.HuGene.redmeta) <- "disease_state"
+cat("GEOD77758.HuGene.redmeta's \"Characteristics..disease.state.\" has been renamed to \"disease_state\" to align with the other metadata files.\n")
+
+#Break up the output
+cat("\n-----\n")
+#-----# 
+
+#Create reduced metadata (redmeta) that removes columns that only contain a single thing
+keep <- NULL
+for (column in 1:ncol(GEOD77758.miRNA.meta)) {
+  keep <- c(keep,length(unique(GEOD77758.miRNA.meta[,column])) != 1)
+}
+GEOD77758.miRNA.redmeta <- GEOD77758.miRNA.meta[,keep]
+
+#Remove ones that are fully unique (cannot check for any batch effects on that anyway)
+keep <- NULL
+for (column in 1:ncol(GEOD77758.miRNA.redmeta)) {
+  keep <- c(keep,length(unique(GEOD77758.miRNA.redmeta[,column])) != nrow(GEOD77758.miRNA.redmeta))
+}
+
+GEOD77758.miRNA.redmeta <- GEOD77758.miRNA.redmeta[,keep]
+
+#Manually remove colums that are unrelevant
+cat("Remaining columns after automatic removal in GEOD77758.miRNA.redmeta:\n", colnames(GEOD77758.miRNA.redmeta),"\n")
+cat("\"Characteristics..disease.state.\" and \"FactorValue..disease.state.\" contain the same data, only keep \"Characteristics..disease.state.\"\n")
+GEOD77758.miRNA.redmeta <- GEOD77758.miRNA.redmeta["Characteristics..disease.state."]
+
+#Break up the output
+cat("\n-----\n")
+
+#Rename the remaining colnames for ease of use
+colnames(GEOD77758.miRNA.redmeta) <- "disease_state"
+cat("GEOD77758.miRNA.redmeta's \"Characteristics..disease.state.\" has been renamed to \"disease_state\" to align with the other metadata files.\n")
+
+#Break up the output
+cat("\n-----\n")
+#-----#
+
+#Remove keep and rename as they are no longer needed
+rm(keep, rename)
+
+```
+
+#Missing values
+Check if the loaded data has any missing values. 
+```{r check_missing_1}
+#Break up the output
+cat("\n-----\n")
+
+if (!(NA %in% GEOD77758.HuGene)){
+  cat("There are no \"NA\" values in GEOD77758.HuGene. \n")
+} else if (NA %in% GEOD77758.HuGene){
+  warning("There are \"NA\" values in GEOD77758.HuGene. \n")
+} else {
+  warning("Something unknown went wrong\n")
+}
+
+#Check how many zeros are in the data
+cat(paste0("There are ", sum(GEOD77758.HuGene == 0), " zero values in GEOD77758.HuGene \n",
+           "That is ", 
+           round((sum(GEOD77758.HuGene == 0)/(ncol(GEOD77758.HuGene) * nrow(GEOD77758.HuGene)))*100, 2), 
+           "% of the data.\n"))
+
+#Check what the smallest value is
+cat(paste0("The smallest value in GEOD77758.HuGene (ignorming zeros) is ", min(GEOD77758.HuGene[GEOD77758.HuGene != 0]),".\n"))
+
+#Break up the output
+cat("\n-----\n")
+
+if (!(NA %in% GEOD77758.miRNA)){
+  cat("There are no \"NA\" values in GEOD77758.miRNA. \n")
+} else if (NA %in% GEOD77758.miRNA){
+  warning("There are \"NA\" values in GEOD77758.miRNA. \n")
+} else {
+  warning("Something unknown went wrong\n")
+}
+
+#Check how many zeros are in the data
+cat(paste0("There are ", sum(GEOD77758.miRNA == 0), " zero values in GEOD77758.miRNA \n",
+           "That is ", 
+           round((sum(GEOD77758.miRNA == 0)/(ncol(GEOD77758.miRNA) * nrow(GEOD77758.miRNA)))*100, 2), 
+           "% of the data.\n"))
+
+#Check what the smallest value is
+cat(paste0("The smallest value in GEOD77758.miRNA (ignorming zeros) is ", min(GEOD77758.miRNA[GEOD77758.miRNA != 0]),".\n"))
+
+#Break up the output
+cat("\n-----\n")
+
+if (!(NA %in% GEOD77758.meta)){
+  cat("There are no \"NA\" values in GEOD77758.meta. \n")
+} else if (NA %in% GEOD77758.meta){
+  warning("There are \"NA\" values in GEOD77758.meta. \n")
+} else {
+  warning("Something unknown went wrong\n")
+}
+
+#Break up the output
+cat("\n-----\n")
+
+```
+
+
+
+
+

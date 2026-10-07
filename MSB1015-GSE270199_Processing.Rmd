@@ -1,0 +1,608 @@
+---
+title: "MSB1015 - GSE270199 Processing"
+author: "Anne"
+date: "2026-10"
+output: html_document
+---
+#Loading the data
+Make sure that the previous file has been run and has saved the rds files (GSE270199_imputed.rds & GSE270199_redmeta.rds found in the OUTPUTS location)
+
+#Clear the global environment
+  Clear the environment to reduce the chance of issues on reruns
+```{r clear_global}
+rm(list=ls())
+```
+
+#Setting the working directory (wd)
+Other files are assumed to be located in the same, or downstream maps from the location of this file. The location of this file is used as a reference point to find the other files. 
+```{r working_directory}
+#download and load the package for setting the working directory to the current file
+if (!require("rstudioapi", quietly = TRUE))
+  install.packages("rstudioapi")
+library(rstudioapi)  
+
+#Set the wd to the location of this file  
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+```
+#Library installations and loading 
+As I will be using a project (renv) for the MSB1015 project, I check first that the packages that need to be installed are installed.
+```{r library_R_file, include=FALSE}
+#For cleanliness the checks, installing and loading of the various libraries is in a separate .R file. This file is assumed to be in the same map as this file (in the wd).
+source("libraries.R")
+```
+
+```{r library_installation}
+#Use the function to install the libraries
+Fun_install_libraries()
+```
+```{r library_loading}
+#Use the function to load the libraries
+Fun_load_libraries()
+```
+#Load in the checks R file
+```{r checks}
+#There are some functions to run checks for various things in this separate .R file.
+#These are not in the main code as they create quite a bit of bloat that makes the code more difficult to read.
+#These are not reusable functions!
+source("checks.R")
+```
+#Load in the custom_functions R file
+```{r custom_functions}
+#There are some functions to run checks for various things in this separate .R file.
+#These are not in the main code to make the main script less bloated and the custom functions easier to find (instead of all of them being spread over the Rmd file).
+source("custom_functions.R")
+```
+#File locations
+Set the locations of the files that are loaded in and the locations on where the outputs will go. 
+This code will also do a check that the given locations are findable. 
+```{r file_locations}
+#Make sure to save the wd so that it is easy to use to set file locations
+working_directory <- getwd()
+
+#The default INPUT_FILE_LOCATION is in a map where this file is also saved.
+INPUT_FILE_LOCATION <- paste0(working_directory,"/INPUTS")
+#The default OUTPUT_FILE_LOCATION is in a map where this file is also saved.
+OUTPUT_FILE_LOCATION <- paste0(working_directory,"/OUTPUTS")
+
+#-----#
+
+#Make sure that the file locations can be found and in the case of the outputs create a dir if it doesn't exist
+Fun_in_out_check()
+
+```
+#Settings
+Any global settings that are used are set here. 
+```{r settings}
+#-----#
+#In multiple sections:
+  #During testing it was often beneficial to run the whole file. Preventing the plots from being printed allows the file to run slightly faster.
+  #This setting is mostly used for testing purposes. 
+#TAG: add into the settings check
+RUN_PLOTS <- TRUE
+
+#-----#
+```
+#Settings check
+Check if the values that were given in the settings are allowed
+```{r}
+#Fun_settings_check2()
+```
+#Load the data from the previous file
+```{r}
+data <- readRDS(paste0(OUTPUT_FILE_LOCATION,"/GSE270199_imputed.rds"))
+metadata <- readRDS(paste0(OUTPUT_FILE_LOCATION,"/GSE270199_redmeta.rds"))
+```
+
+
+
+
+
+
+
+
+
+
+#TAG: Put what is below this into a different file:
+--> MSB1015-GSE270199_Processing.Rmd
+
+
+#PCA on only disease
+```{r PCA_on_disease}
+#Get the patient identifiers so that the zero removal can be done while keeping the groups in mind.
+healthy_group <- rownames(metadata)[grep("healthy", metadata[,"disease_state"])]
+EDS_group <- rownames(metadata)[grep("EDS-HT", metadata[,"disease_state"])]
+
+
+#Subset to only get the patient data
+GSE270199.disease_only <- data[EDS_group]
+
+#Run a PCA on the patient only data
+PCA.disease_only <- pca(object = t(as.matrix(GSE270199.disease_only)), 
+                   method = "svd", nPcs = 9, center = TRUE)
+
+
+if (RUN_PLOTS){
+  Fun_plot_PCA_scores(PCA = PCA.disease_only, 
+                      metadata = metadata, 
+                      firstPC = "PC1", 
+                      secondPC = "PC2", 
+                      title = "PCA scores (PC1 vs PC2) of just the patients")
+} else {
+  cat("Plot not visualized due to RUN_PLOTS being set to FALSE.\n")
+}
+
+if (RUN_PLOTS){
+  Fun_plot_PCA_scores(PCA = PCA.disease_only, 
+                        firstPC = "PC2", 
+                        secondPC = "PC3", 
+                        title = "PCA scores (PC2 vs PC3) of just the patients")
+} else {
+  cat("Plot not visualized due to RUN_PLOTS being set to FALSE.\n")
+}
+if (RUN_PLOTS){
+  Fun_plot_PCA_scores(PCA = PCA.disease_only, 
+                        firstPC = "PC3", 
+                        secondPC = "PC4", 
+                        title = "PCA scores (PC3 vs PC4) of just the patients")
+} else {
+  cat("Plot not visualized due to RUN_PLOTS being set to FALSE.\n")
+}
+if (RUN_PLOTS){
+  Fun_plot_PCA_scores(PCA = PCA.disease_only, 
+                        firstPC = "PC4", 
+                        secondPC = "PC5", 
+                        title = "PCA scores (PC4 vs PC5) of just the patients")
+} else {
+  cat("Plot not visualized due to RUN_PLOTS being set to FALSE.\n")
+}
+
+
+
+
+if (RUN_PLOTS){
+  Fun_plot_PCA_loadings(PCA = PCA.disease_only, 
+                        firstPC = "PC1", 
+                        secondPC = "PC2", 
+                        title = "PCA loadings (PC1 vs PC2) of just the patients")
+} else {
+  cat("Plot not visualized due to RUN_PLOTS being set to FALSE.\n")
+}
+
+if (RUN_PLOTS){  
+  Fun_plot_biplot(PCA = PCA.disease_only, 
+                  top = 50, 
+                  firstPC = "PC1", 
+                  secondPC = "PC2", 
+                  title = "Biplot using the top 50 genes for the just patient data.")
+} else {
+  cat("Plot not visualized due to RUN_PLOTS being set to FALSE.\n")
+}
+
+```
+
+#WIP
+```{r}
+#Get the top loadings for both PC1 and PC2 to use as the background network
+top_loadings <- as.data.frame(PCA.disease_only@loadings) %>%
+    mutate(
+      contribution = sqrt(eval(parse(text="PC1"))^2 + eval(parse(text="PC2"))^2)
+    ) %>%
+    arrange(desc(contribution)) %>%
+    head(round(length(rownames(as.data.frame(PCA.disease_only@loadings)))*0.75))
+top_loadings <- rownames(top_loadings)
+
+#Get loadings that pass 0.03 for PC1
+#temp <- as.data.frame(PCA.disease_only@loadings)["PC1"]
+#top_loadings_PC1 <- rownames(temp)[abs(temp) > 0.01]
+
+#Get loadings that pass 0.03 for PC2
+#temp <- as.data.frame(PCA.disease_only@loadings)["PC2"]
+#top_loadings_PC2 <- rownames(temp)[abs(temp) > 0.01]
+
+#Get the top loadings 
+#top_loadings <- unique(top_loadings_PC1, top_loadings_PC2)
+
+#Check that Cytoscape can be reached
+cytoscapePing()
+
+#If this section of code is re-run then the code runs into issues, to prevent this, remove if there is a networkSuid in the environment already and reload it
+if (exists("networkSuid")){
+  cat("networkSuid was already made, removing it and remaking it to prevent issues with the code rerunning.\n")
+  RCy3::deleteNetwork(networkSuid)
+  rm(networkSuid)
+  cat("networkSuid has been deleted and will be remade.\n")
+} else if (!exists("networkSuid")){
+  cat("networkSuid does not exist in the environment, creating new network. \n")
+}
+
+
+#Build the command to send to Cytoscape
+cmd <- paste0(
+  'string protein query ',
+  'query="', top_loadings, '" ',
+  'networkType=full STRING network ',
+  'cutoff=0.4 ',
+  'newNetName=Base Network ',
+  'species="Homo sapiens" ',
+  'limit=100 ',
+  'showFlatNodeDesign=true ',
+  'showSTRINGstyleLabels=false ',
+  'showStructureImages=false'
+  )
+
+#Send the command to Cytoscape to build the network
+RCy3::commandsRun(cmd)
+
+#Get the network's SUID
+networkSuid = getNetworkSuid()
+
+
+
+#-----#
+
+```
+
+
+#WIP AI CODE
+```{r WIP_AI_code}
+if(FALSE){
+  #Skip this code for now
+  
+# 2. Extract loadings (rotation matrix), convert to data frame, and select PC1
+loadings_df <- PCA.imputed@loadings %>%
+  as.data.frame() %>%
+  rownames_to_column(var = "Variable") %>%
+  select(Variable, PC1)
+
+# 3. Find the top 20 most important variables based on absolute loading value for PC1
+top_20_loadings <- loadings_df %>%
+  mutate(Abs_PC1 = abs(PC1)) %>%
+  arrange(desc(Abs_PC1)) %>%
+  head(20) %>%
+  # Reorder factor levels for proper plotting order
+  mutate(Variable = reorder(Variable, PC1))
+
+
+if (RUN_PLOTS){
+  # 4. Plot the top 20 loadings using ggplot2
+  ggplot(top_20_loadings, aes(x = Variable, y = PC1, fill = PC1 > 0)) +
+    geom_col(show.legend = FALSE) +
+    coord_flip() + # Makes horizontal bar chart for readability
+    theme_minimal() +
+    labs(
+      title = "Top 20 Most Important Loadings for PC1",
+      x = "Original Variables",
+      y = "Loading Score (PC1)"
+    ) +
+    scale_fill_manual(values = c("TRUE" = "#2b8cbe", "FALSE" = "#e34a33"))
+} else {
+  cat("Plots not visualized due to RUN_PLOTS being set to FALSE.\n")
+}
+
+
+top_20_loadings$Variable
+}
+```
+
+#Top 20:
+ENSG00000164530 ENSG00000111057 ENSG00000110723 ENSG00000060718 ENSG00000167641 ENSG00000135480 ENSG00000267368 ENSG00000148677 ENSG00000243137 ENSG00000165072 ENSG00000250337 ENSG00000164176 ENSG00000170345 ENSG00000021645 ENSG00000064787 ENSG00000272145 ENSG00000143473 ENSG00000205426 ENSG00000064205 ENSG00000196460
+#Top 50:
+ENSG00000164530 ENSG00000111057 ENSG00000110723 ENSG00000060718 ENSG00000167641 ENSG00000135480 ENSG00000267368 ENSG00000148677 ENSG00000243137 ENSG00000165072 ENSG00000250337 ENSG00000164176 ENSG00000170345 ENSG00000021645 ENSG00000064787 ENSG00000272145 ENSG00000143473 ENSG00000205426 ENSG00000064205 ENSG00000196460 ENSG00000246223 ENSG00000145242 ENSG00000129682 ENSG00000267390 ENSG00000111087 ENSG00000153707 ENSG00000244649 ENSG00000248576 ENSG00000133110 ENSG00000196616 ENSG00000248187 ENSG00000165617 ENSG00000123689 ENSG00000117115 ENSG00000241644 ENSG00000282860 ENSG00000257894 ENSG00000145681 ENSG00000117643 ENSG00000002933 ENSG00000155011 ENSG00000177459 ENSG00000157303 ENSG00000176406 ENSG00000188393 ENSG00000170558 ENSG00000137331 ENSG00000055732 ENSG00000281501 ENSG00000178776
+
+
+
+#Calculate log2FC values
+The formula used to calculate the fold change was found at:
+https://www.biostars.org/p/342756/
+```{r log2FC}
+#Change the whole dataset to log2 notation
+data.log2 <- log2(data)
+#Remove the -Inf's created from taking the log2 of zero by setting it to zero
+data.log2[data.log2 == -Inf] <- 0
+
+#DUPLICATE: These groups were specified before but are here again for clarity
+#Get the identifiers of the two groups
+healthy_group <- rownames(metadata)[grep("healthy", metadata[,"disease_state"])]
+EDS_group <- rownames(metadata)[grep("EDS-HT", metadata[,"disease_state"])]
+
+#Pre-make the dataframe to store the data in
+log2FC_dataframe <- data.frame(row.names = rownames(data.log2))
+#Pre-allocate to save the top genes
+top_log2FC_list <- list()
+#Pre-allocate to save the differential ones
+diff_log2FC_list <- list()
+
+#Loop to get the log2FC's of the patients vs the controls, one-on-one
+for (control in 1:length(healthy_group)){
+  #cat for some feedback
+  cat(paste0("C",control," "))
+  for (patient in 1:length(EDS_group)){
+    #cat for some feedback
+    cat(paste0("P",patient," "))
+    
+    #Get a run_name to save the name of the log2FC
+    run_name <- paste0(EDS_group[patient],"_",healthy_group[control])
+    
+    #Calculate the log2FC using subtraction:
+      #log2(A)-log2(B) == log2(A/B)
+    temp <- data.log2[,EDS_group[patient]] - data.log2[,healthy_group[control]]
+    #Set the temp to the run_name
+    log2FC_dataframe[[run_name]] <- temp
+    
+    #Get the differential genes that are used to build the STRING network 
+      #This makes the assumption that this prevents loading in housekeeping genes that do not change anyway
+      #An abs value of 1 or above means that the gene at least doubled or halved it's expression
+    diff_log2FC_list[[run_name]] <- rownames(log2FC_dataframe[(abs(temp) >= 1),])
+    
+    #Get the top genes for this comparison
+    temp_top <- temp %>% 
+                  as.data.frame(row.names = rownames(log2FC_dataframe)) %>%
+                  slice_max(abs(temp), n = 20) %>% 
+                  rownames(temp)
+    #Set the top_temp to the run_name
+    top_log2FC_list[[run_name]] <- temp_top
+      
+  }
+}
+
+#Extract the genes for the background network
+STRING_background_network <- unique(unlist(diff_log2FC_list))
+#Set it to something that can be queried
+STRING_background_network <- readr::format_csv(as.data.frame(head(STRING_background_network,250)), 
+                                               col_names=F, escape = "double", eol =",")
+
+#Extract the genes that came out on top at least once
+STRING_top_node_genes <- unique(unlist(top_log2FC_list))
+#Set it to something that can be queried
+STRING_top_node_genes <- readr::format_csv(as.data.frame(STRING_top_node_genes), 
+                                           col_names=F, escape = "double", eol =",")
+
+#Remove the temp objects from the environment
+rm(temp, temp_top, patient, control, run_name)
+
+```
+
+#Load network into Cytoscape and Diffusion
+These two tasks are in the same block so that rerunning the block is possible 
+  It reloads the Cytoscape network each time, to prevent running into errors
+Use Cytoscape to run the diffusion on the network and extract the heat and rank information.
+
+```{r load_network_and_diffusion, echo=TRUE, output=TRUE, include=TRUE}
+#See if Cytoscape can be reached
+  #This automatically stops the code when Cytoscape cannot be reached (built into the function)
+cytoscapePing()
+
+
+#If this section of code is re-run then the code runs into issues, to prevent this, remove if there is a networkSuid in the environment already and reload it
+if (exists("networkSuid")){
+  cat("networkSuid was already made, removing it and remaking it to prevent issues with the code rerunning.\n")
+  RCy3::deleteNetwork(networkSuid)
+  rm(networkSuid)
+  cat("networkSuid has been deleted and will be remade.\n")
+} else if (!exists("networkSuid")){
+  cat("networkSuid does not exist in the environment, creating new network. \n")
+}
+
+
+#Build the command to send to Cytoscape
+cmd <- paste0(
+  'string protein query ',
+  'query="', STRING_background_network, '" ',
+  'networkType=physical subnetwork ',
+  'cutoff=0.4 ',
+  'newNetName=Base Network ',
+  'species="Homo sapiens" ',
+  'limit=100 ',
+  'showFlatNodeDesign=true ',
+  'showSTRINGstyleLabels=false ',
+  'showStructureImages=false'
+  )
+
+#Send the command to Cytoscape to build the network
+RCy3::commandsRun(cmd)
+
+#Get the network's SUID
+networkSuid = getNetworkSuid()
+
+
+
+#-----#
+
+
+#Get pre-allocated object to save the diffusion output that can be merged into
+  #display name and query term are loaded in so that the merge command can merge the dataframes using that as a reference
+diffusion_output <- getTableColumns(
+    table = "node",
+    columns = c("display name","query term")
+)
+
+#TAG: Remove the limitation (was added for testing the code)
+for (run_name in colnames(log2FC_dataframe)[c(1,2)]){
+  
+  #Select the source that the diffusion starts from 
+  gene_selection <- c(rownames(log2FC_dataframe)[abs(log2FC_dataframe[run_name]) >= 2])
+  
+  #Select nodes in Cytoscape network
+  selectNodes(
+      gene_selection,
+      by.col = "query term",
+      preserve.current.selection = FALSE
+  )
+  
+  #Setting the time of the diffusion command any lower than the maximum 1 disperses no heat at all
+  #Neither does using the diffusion diffuse command
+    #I assume there is a bug in the diffusion algorithm of Cytoscape that I am unqualified to do anything about
+  #TAG: CHANGE THE TIME
+  RCy3::commandsRun('diffusion diffuse_advanced time=0.1')
+  
+  
+  #Rename the diffusion output so that the results don't get mixed up
+  renameTableColumn(
+      table = "node",
+      column = "diffusion_output_heat",
+      new.name = paste0(run_name, "_heat")
+  )
+  renameTableColumn(
+      table = "node",
+      column = "diffusion_output_rank",
+      new.name = paste0(run_name, "_rank")
+  )
+  
+  #Get the diffusion results from Cytoscape
+  temp_output <- getTableColumns(
+      table = "node",
+      columns = c("display name","query term", paste0(run_name, "_heat"), paste0(run_name, "_rank"))
+  )
+  
+  #Round the output to both filter out extremely low heat and make downstream easier
+  temp_output[paste0(run_name, "_heat")] <- round(temp_output[paste0(run_name, "_heat")], 3)
+  
+
+  #Merge the new result to the diffusion_output
+  diffusion_output <- merge(diffusion_output, temp_output)
+}
+
+#Remove the temp objects
+#rm(temp_output, run_name, gene_selection)
+
+head(diffusion_output)
+```
+
+
+
+#WIP - Testing comparisons
+```{r}
+#pearson
+diff1 <- diffusion_output$GSM8336713_GSM8336703_heat
+diff2 <- diffusion_output$GSM8336712_GSM8336703_heat
+cat("Pearson correlation:\t", cor(diff1, diff2, method = "pearson"), "\n")
+
+#spearman
+cat("Spearman correlation:\t", cor(diff1, diff2, method = "spearman"), "\n")
+
+#kendall
+cat("Kendall correlation:\t", cor(diff1, diff2, method = "kendall"), "\n")
+
+#euclidean
+cat("Euclidian distance:\t", sqrt(sum((diff1 - diff2)^2)), "\n")
+
+#euclidean normalized
+d1 <- diff1 / sum(diff1)
+d2 <- diff2 / sum(diff2)
+cat("Normalized Euclidian distance:\t", sqrt(sum((d1 - d2)^2)), "\n")
+
+
+#cosine
+cat("Cosine:\t", 
+    sum(diff1 * diff2) / (sqrt(sum(diff1^2)) * sqrt(sum(diff2^2))), 
+    "\n")
+
+
+#Difference
+results <- as.data.frame(matrix(nrow = length(diff1), ncol = 0))
+results$difference <- diff1 - diff2
+results$abs_difference <- abs(diff1 - diff2)
+#results[order(-results$abs_difference), ]
+
+#Make a comparison bit use and offset so that nodes that are very similar are also considered equal
+results$direction <- ifelse(diff1 > diff2+0.05,
+  "Diffusion 1",
+  ifelse(diff1 < diff2-0.05,
+    "Diffusion 2",
+    ifelse(diff1 == diff2 & diff1 == 0,
+           "No heat",
+           ifelse(diff1 == 0 & diff2 != 0,
+             "Only Diffusion 2",
+             ifelse(diff1 != 0 & diff2 == 0,
+                "Only Diffusion 1",
+                 ifelse(diff1 <= diff2+0.05 & diff1 >= diff2-0.05,
+                    "Equal",
+                    "Something went wrong"))))))
+
+
+#Also make a comparison encoded as colors for easier passthrough mapping in Cytoscape
+results$direction_colors <- ifelse(diff1 > diff2+0.05,
+  "red",
+  ifelse(diff1 < diff2-0.05,
+    "blue",
+    ifelse(diff1 == diff2 & diff1 == 0,
+           "white",
+           ifelse(diff1 == 0 & diff2 != 0,
+             "lightblue",
+             ifelse(diff1 != 0 & diff2 == 0,
+                "pink",
+                 ifelse(diff1 <= diff2+0.05 & diff1 >= diff2-0.05,
+                    "lightgreen",
+                    "Something went wrong"))))))
+              
+cat(paste0(sum(results["direction"]=="No heat"), 
+    " nodes (",
+    round((sum(results["direction"]=="No heat")/nrow(results["direction"]))*100, 2),
+    "%) carry no heat in both the comparisons.\n"))
+
+cat(paste0(sum(results["direction"]=="Equal"), 
+    " nodes (",
+    round((sum(results["direction"]=="Equal")/nrow(results["direction"]))*100, 2),
+    "%) are equal between the comparisons.\n"))
+
+cat(paste0(sum(results["direction"]=="Diffusion 1"), 
+    " nodes (",
+    round((sum(results["direction"]=="Diffusion 1")/nrow(results["direction"]))*100, 2),
+    "%) carry more heat in the first diffusion.\n"))
+
+cat(paste0(sum(results["direction"]=="Only Diffusion 1"), 
+    " nodes (",
+    round((sum(results["direction"]=="Only Diffusion 1")/nrow(results["direction"]))*100, 2),
+    "%) only have heat in diffusion 1.\n"))
+
+cat(paste0(sum(results["direction"]=="Diffusion 2"), 
+    " nodes (",
+    round((sum(results["direction"]=="Diffusion 2")/nrow(results["direction"]))*100, 2),
+    "%) nodes carry more heat in the second diffusion.\n"))
+
+cat(paste0(sum(results["direction"]=="Only Diffusion 2"), 
+    " nodes (",
+    round((sum(results["direction"]=="Only Diffusion 2")/nrow(results["direction"]))*100, 2),
+    "%) only have heat in diffusion 2.\n"))
+
+diffusion <- results["direction_colors"]
+rownames(diffusion) <- diffusion_output$"display name"
+
+loadTableData(
+    diffusion,
+    data.key.column = "row.names",
+    table.key.column = "display name"
+)
+
+
+```
+
+
+
+#Get scores dataframe
+#TAG: Probably not useful
+```{r}
+scores_dataframe <- log2FC_dataframe
+scores_dataframe[abs(scores_dataframe) > 3] <- 3
+scores_dataframe[abs(scores_dataframe) > 2.5 & abs(scores_dataframe) < 3] <- 2.5
+scores_dataframe[abs(scores_dataframe) > 2 & abs(scores_dataframe) < 2.5] <- 2
+scores_dataframe[abs(scores_dataframe) > 1.5 & abs(scores_dataframe) < 2] <- 1.5
+scores_dataframe[abs(scores_dataframe) > 1 & abs(scores_dataframe) < 1.5] <- 1
+scores_dataframe[abs(scores_dataframe) < 1] <- 0
+
+colnames(scores_dataframe)
+
+rownames(scores_dataframe)[scores_dataframe["GSM8336713_GSM8336703"] >= 2]
+```
+
+#Think about the class imbalance 
+#Get this pipeline started
+
+#Continuation ideas:
+Get differential expression between healthy and diseased (for both of the datasets)
+Look into that heat dispersion algorithm that was covered in Network Biology
+  Instead of looking what is different, look at what system/pathway is different
+Compare the differences on that level
+
+
+
