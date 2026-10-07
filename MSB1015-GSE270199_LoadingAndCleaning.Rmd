@@ -99,9 +99,9 @@ Any global settings that are used are set here.
 #In multiple sections:
   #During testing it was often beneficial to run the whole file. Preventing the plots from being printed allows the file to run slightly faster.
   #This setting is mostly used for testing purposes. 
-#TAG: add into the settings check
 RUN_PLOTS <- TRUE
 
+#-----#
 #In section: remove_missing
   #Missing values are removed from GSE270199, these are the thresholds that are permitted for the gene to be kept. 
 #Set the percentage (0 to 100) of zeros that are allowed in the healthy group
@@ -117,29 +117,28 @@ allow_zeros_in_EDS_percent <- 20
     #"difference" --> The difference between the previous two options.
 FILTERSETTING <- "either"
 
-
-
-
-
-#TAG: Add discription of what this setting does
-#TAG: add into the settings check
+#-----#
+#In section: imputation
+#Set if you would like to impute the data (TRUE/FALSE) to 80% of the mean of non-zero values in the group.
 IMPUTE_MISSING <- TRUE
-#TAG: Add discription of what this setting does
-#TAG: add into the settings check
+#Set if you would like to impute the data (TRUE/FALSE) to zero if enough data within that group is missing. 
+  #How much data needs to be missing is set in the zeros_for_imputation settings below. 
 IMPUTE_ZEROS <- TRUE
-#TAG: Add discription of what this setting does
-#TAG: turn this into percentages as well if time allows
-#TAG: add into the settings check
-zeros_for_imputation_EDS = 8
-zeros_for_imputation_healthy = 3
+#When you impute, how many samples withing the group need to be missing for the remainder to be set to zero.
+  #Ex: zeros_for_imputation_EDS at 8 means that 8 of the 10 patient samples
+  # need to be zero for the remaining two to also be set to zero.
+  #Ex: zeros_for_imputation_healthy at 3 means that 3 of the 4 healthy samples
+  # need to be zero for the remaining one to also be set to zero.
+#TAG: turn this into percentages if time allows
+zeros_for_imputation_EDS <- 8
+zeros_for_imputation_healthy <- 3
 
 
 ```
 #Settings check
 Check if the values that were given in the settings are allowed
 ```{r}
-#TAG: Split the settings checks into multiple settings checks so that only relevant settings are checked
-Fun_settings_check()
+Fun_settings_check1()
 ```
 #Load GSE270199 data
 The data is loaded here. 
@@ -266,37 +265,20 @@ Check if the loaded data has any missing values.
 #Break up the output
 cat("\n-----\n")
 
-#TAG: turn this into a reusable function and place it in the checks file
 #Check if any values are NA 
-if (!(NA %in% GSE270199)){
-  cat("There are no \"NA\" values in GSE270199 \n")
-} else if (NA %in% GSE270199){
-  warning("There are \"NA\" values in GSE270199 \n")
-} else {
-  warning("Something unknown went wrong\n")
-}
+Fun_NA_check(GSE270199, "GSE270199")
 
-#TAG: turn this into a reusable function and place it in the checks file
 #Check how many zeros are in the data
-cat(paste0("There are ", sum(GSE270199 == 0), " zero values in GSE270199. \n",
-           "That is ", 
-           round((sum(GSE270199 == 0)/(ncol(GSE270199) * nrow(GSE270199)))*100, 2), 
-           "% of the data.\n"))
+Fun_zero_check(GSE270199, "GSE270199")
 
-#TAG: turn this into a reusable function and place it in the checks
 #Check what the smallest value is
-cat(paste0("The smallest value in GSE270199 (ignorming zeros) is ", min(GSE270199[GSE270199 != 0]),"."))
+Fun_smallest_value(GSE270199, "GSE270199")
+
 
 #Break up the output
 cat("\n-----\n")
 
-if (!(NA %in% GSE270199.meta)){
-  cat("There are no \"NA\" values in GSE270199.meta. \n")
-} else if (NA %in% GSE270199.meta){
-  warning("There are \"NA\" values in GSE270199.meta. \n")
-} else {
-  warning("Something unknown went wrong\n")
-}
+Fun_NA_check(GSE270199.meta, "GSE270199.meta")
 
 #Break up the output
 cat("\n-----\n")
@@ -579,15 +561,10 @@ if (RUN_PLOTS){
 Check the progress of the missing value removal. 
 ```{r check_missing_2}
 #Check how many zeros are in the data
-cat(paste0("There are ", sum(GSE270199.filtered == 0), " zero values in GSE270199.filtered before imputation \n",
-           "That is ", 
-           round((sum(GSE270199.filtered == 0)/(ncol(GSE270199.filtered) * nrow(GSE270199.filtered)))*100, 2), 
-           "% of the data.\n"))
+Fun_zero_check(GSE270199.filtered, "GSE270199.filtered (before imputation)")
+
 #Check how many zeros are in the data
-cat(paste0("There are ", sum(GSE270199.imputed == 0), " zero values in GSE270199.imputed after imputation \n",
-           "That is ", 
-           round((sum(GSE270199.imputed == 0)/(ncol(GSE270199.imputed) * nrow(GSE270199.imputed)))*100, 2), 
-           "% of the data.\n"))
+Fun_zero_check(GSE270199.imputed, "GSE270199.imputed (after imputation)")
 ```
 #Compare the pca's before and after imputation
 Calculate the PCA's
@@ -665,7 +642,6 @@ if (RUN_PLOTS){
 #Save the data in an RData file 
 This is so that the next file can start processing it from there
 ```{r save_RData}
-#TAG: DO THIS INSTEAD OF HAVING EVERYTHING IN ONE FILE
 saveRDS(GSE270199.imputed, paste0(OUTPUT_FILE_LOCATION,"/GSE270199_imputed.rds"))
 saveRDS(GSE270199.redmeta, paste0(OUTPUT_FILE_LOCATION,"/GSE270199_redmeta.rds"))
 ```

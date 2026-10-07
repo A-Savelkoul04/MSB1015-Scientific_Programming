@@ -40,7 +40,16 @@ Fun_in_out_check <- function(){
 ### settings      ###
 ### allowed       ###
 #####################
-Fun_settings_check <- function(){
+#Settings check for the first file
+Fun_settings_check1 <- function(){
+  #In section: All
+  #RUN_PLOTS needs to be TRUE or FALSE
+  if (RUN_PLOTS == TRUE | RUN_PLOTS == FALSE){
+    cat("RUN_PLOTS has a valid value.\n")
+  } else {
+    warning("RUN_PLOTS does NOT have a valid value.\nStopping code.\n")
+    stop()
+  }
   #-----#
   #In section: remove_missing
   #allow_zeros_in_healthy_percent needs to be a number and be between (inclusive) 0 and 100.
@@ -64,8 +73,50 @@ Fun_settings_check <- function(){
     warning("FILTERSETTING does NOT have a valid value.\nUse one of the three available options: \"either\", \"both\", or \"difference\".\nStopping code.\n")
     stop()
   }
-  
   #-----#
+  #In section: imputation
+  #IMPUTE_MISSING needs to be TRUE or FALSE
+  if (IMPUTE_MISSING == TRUE | IMPUTE_MISSING == FALSE){
+    cat("IMPUTE_MISSING has a valid value.\n")
+  } else {
+    warning("IMPUTE_MISSING does NOT have a valid value.\nStopping code.\n")
+    stop()
+  }
+  #IMPUTE_ZEROS needs to be TRUE or FALSE
+  if (IMPUTE_ZEROS == TRUE | IMPUTE_ZEROS == FALSE){
+    cat("IMPUTE_ZEROS has a valid value.\n")
+  } else {
+    warning("IMPUTE_ZEROS does NOT have a valid value.\nStopping code.\n")
+    stop()
+  }
+  #zeros_for_imputation_EDS needs to be a number and be between (inclusive) 0 and 10.
+  #TAG: Update this check and the code that handles this to a percentage instead if time allows.
+  if (is.numeric(zeros_for_imputation_EDS) & 0 <= zeros_for_imputation_EDS & zeros_for_imputation_EDS <= 10){
+    cat("zeros_for_imputation_EDS has a valid value.\n")
+  } else {
+    warning("zeros_for_imputation_EDS does NOT have a valid value.\nStopping code.\n")
+    stop()
+  }  
+  #zeros_for_imputation_healthy needs to be a number and be between (inclusive) 0 and 4.
+  #TAG: Update this check and the code that handles this to a percentage instead if time allows.
+  if (is.numeric(zeros_for_imputation_healthy) & 0 <= zeros_for_imputation_healthy & zeros_for_imputation_healthy <= 4){
+    cat("zeros_for_imputation_healthy has a valid value.\n")
+  } else {
+    warning("zeros_for_imputation_healthy does NOT have a valid value.\nStopping code.\n")
+    stop()
+  }   
+  #-----#
+}
+#Settings check for the second file
+Fun_settings_check2 <- function(){
+  #In section: All
+  #RUN_PLOTS needs to be TRUE or FALSE
+  if (RUN_PLOTS == TRUE | RUN_PLOTS == FALSE){
+    cat("RUN_PLOTS has a valid value.\n")
+  } else {
+    warning("RUN_PLOTS does NOT have a valid value.\nStopping code.\n")
+    stop()
+  }
 }
 
 #####################

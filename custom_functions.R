@@ -6,6 +6,39 @@
 ############################################################
 
 #####################
+### NA values     ###
+#####################
+
+Fun_NA_check <- function(object, object_name){
+  if (!(NA %in% object)){
+    cat(paste0("There are no \"NA\" values in ", object_name,".\n"))
+  } else if (NA %in% object){
+    warning(paste0("There are \"NA\" values in ", object_name,".\n"))
+  } else {
+    warning("Something unknown went wrong\n")
+  }
+}
+
+#####################
+### zero values   ###
+#####################
+
+Fun_zero_check <- function(object, object_name){
+  cat(paste0("There are ", sum(object == 0), " zero values in ",object_name, ".\n",
+             "That is ", 
+             round((sum(object == 0)/(ncol(object) * nrow(object)))*100, 2), 
+             "% of the data.\n"))
+}
+
+#####################
+### smallest value###
+#####################
+
+Fun_smallest_value <- function(object, object_name){
+  cat(paste0("The smallest value in ",object_name," (ignorming zeros) is ", min(object[object != 0]),"."))
+}
+
+#####################
 ### Missingness   ###
 #####################
 
