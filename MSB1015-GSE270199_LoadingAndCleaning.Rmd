@@ -102,6 +102,15 @@ Any global settings that are used are set here.
 RUN_PLOTS <- TRUE
 
 #-----#
+#In section: inferred_sex
+#TAG: Add description
+#TAG: Add to check
+QUERY_ENSEMBL <- FALSE
+#TAG: Add description
+#TAG: Add to check
+OVERRIDE_Y_CHRO_SAVED_FILE <- TRUE
+  
+#-----#
 #In section: remove_missing
   #Missing values are removed from GSE270199, these are the thresholds that are permitted for the gene to be kept. 
 #Set the percentage (0 to 100) of zeros that are allowed in the healthy group
@@ -248,6 +257,71 @@ cat("\n-----\n")
 rm(keep, rename, column)
 
 ```
+#Detect Y chromosome markers to get male/female information for the metadata
+```{r inferred_sex}
+#Only query the ensemble if the file to be loaded in doesn't exist or if the QUERY_ENSEMBL setting is set to TRUE
+
+if (QUERY_ENSEMBL | !(file.exists(paste0(OUTPUT_FILE_LOCATION,"/genes_y_chromosome.rds")))){
+  #Set-up ensembl API connection
+  ensembl_db <- useEnsembl(biomart = "genes")
+  ensembl_dataset <- useDataset(dataset = "hsapiens_gene_ensembl",
+                                mart = ensembl_db)
+  
+  #Get genes in chromosome Y from ensembl
+  genes_y_chromosome <- getBM(
+    attributes = c("ensembl_gene_id"),
+    filters = "chromosome_name",
+    values = "Y",
+    mart = ensembl_dataset
+  )
+  
+  #Save the genes_y_chromosome.rds if the genes_y_chromosome.rds is not found in the OUTPUTS folder or if the OVERRIDE_Y_CHRO_SAVED_FILE setting to override the current file is set to TRUE
+  if (!(file.exists(paste0(OUTPUT_FILE_LOCATION,"/genes_y_chromosome.rds"))) | OVERRIDE_Y_CHRO_SAVED_FILE){
+  #The ensemble database was being temperamental, so save the results to the output so that those can be loaded instead if needed
+  saveRDS(genes_y_chromosome, paste0(OUTPUT_FILE_LOCATION,"/genes_y_chromosome.rds"))
+  }
+} else {
+  genes_y_chromosome <- readRDS(paste0(OUTPUT_FILE_LOCATION,"/genes_y_chromosome.rds"))
+}
+
+#Keep only genes that are found in the dataset
+genes_y_chromosome_in_data <- genes_y_chromosome |>
+  filter(ensembl_gene_id %in% rownames(GSE270199))
+
+#Get some feedback
+cat(paste0(nrow(genes_y_chromosome_in_data)," out of ", nrow(genes_y_chromosome), " of the Y chromosome genes were found in the data."))
+
+#Get the y_genes in a way that can be used to subset the data
+y_genes <- genes_y_chromosome_in_data[,1]
+
+#As the data is pre-normalized simply taking the sum and seeing which are above zero should be enough
+  #Feel free to run: 
+  # colSums(GSE270199[y_genes, ])
+  # to verify this
+inferred_sex <- ifelse(colSums(GSE270199[y_genes, ]) == 0,
+                       "Female",
+                       "Male")
+inferred_sex <- as.data.frame(inferred_sex)
+
+#Add the inferred_sex to the reduced metadata
+GSE270199.redmeta <- merge(GSE270199.redmeta, inferred_sex, by='row.names', all=TRUE)
+rownames(GSE270199.redmeta) <- GSE270199.redmeta$Row.names
+
+#Also get a combined disease and sex for the reduced metadata 
+disease_sex <- ifelse(GSE270199.redmeta$disease_state == "EDS-HT/JHS",
+                      ifelse(GSE270199.redmeta$inferred_sex == "Male",
+                             "EDS_Male",
+                             "EDS_Female"),
+                      ifelse(GSE270199.redmeta$inferred_sex == "Male",
+                             "healthy_Male",
+                             "healthy_Female"))
+
+#Add the disease_sex to the reduced metadata
+GSE270199.redmeta["disease_sex"] <- disease_sex
+
+```
+
+
 #TAG: REMOVE THIS, THIS WAS A TEST ON HOW THE DATA RESPONDED TO GSM8336700 BEING REMOVED
   The answer was confusing, not in a way I want to deal with
 ```{r temp_test}
@@ -328,7 +402,7 @@ Plot all of the different data created in the script so far to compare the diffe
 *The missingness plots will create a warning, I elected to ignore this warning for now.* 
 ```{r missingness_plots}
 #Create color_groups to color the labels of the samples so it is easier to see what the controls are vs the patients
-color_groups <- ifelse(GSE270199.redmeta[colnames(GSE270199),] == "EDS-HT/JHS", "#FF0000", "#0000FF")
+color_groups <- ifelse(GSE270199.redmeta[colnames(GSE270199),"disease_state"] == "EDS-HT/JHS", "#FF0000", "#0000FF")
 
 #Plot the missingness plots
 if (RUN_PLOTS){
@@ -543,7 +617,7 @@ Compare what the imputation has done to the missingness of the data.
 ```{r imputation_result}
 #DUPLICATE: color_groups is created above as well, but repeated for clarity
 #Create color_groups to color the labels of the samples so it is easier to see what the controls are vs the patients
-color_groups <- ifelse(GSE270199.redmeta[colnames(GSE270199),] == "EDS-HT/JHS", "#FF0000", "#0000FF")
+color_groups <- ifelse(GSE270199.redmeta[colnames(GSE270199),"disease_state"] == "EDS-HT/JHS", "#FF0000", "#0000FF")
 
 #Visualize the missingness plots
 if (RUN_PLOTS){

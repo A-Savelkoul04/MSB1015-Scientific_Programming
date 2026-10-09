@@ -142,8 +142,11 @@ Fun_plot_PCA_scores <- function(PCA, metadata = GSE270199.redmeta, firstPC = "PC
   PCA.scores <- as.data.frame(PCA.scores)
   PCA.scores <- merge(x = PCA.scores, y = metadata, by = 'row.names')
   
-  ggplot(PCA.scores, aes(x=eval(parse(text=firstPC)), y=eval(parse(text=secondPC)), color = disease_state, label=Row.names)) +
-    geom_point() + geom_text(hjust=0, vjust=0) +
+  ggplot(PCA.scores, aes(x=eval(parse(text=firstPC)), y=eval(parse(text=secondPC)), color = disease_state, fill = inferred_sex, label=Row.names)) +
+    geom_point(shape = 21) + 
+    scale_color_manual(values=c("#F8766D", "#00BFC4")) +
+    scale_fill_manual(values=c("red", "black")) +
+    geom_text(hjust=0, vjust=0) +
     labs(x = paste0(firstPC,": ", as.numeric(PCA@R2[firstPC])*100,"%"), 
          y = paste0(secondPC,": ", as.numeric(PCA@R2[secondPC])*100,"%"),
          title = title)
@@ -216,7 +219,9 @@ Fun_plot_biplot <- function(PCA,
   
   
   ggplot(PCA.scores, aes(eval(parse(text=firstPC)), eval(parse(text=secondPC)))) +
-    geom_point(aes(color = disease_state)) +
+    geom_point(shape = 21, aes(color = disease_state, fill = inferred_sex)) +
+    scale_color_manual(values=c("#F8766D", "#00BFC4")) +
+    scale_fill_manual(values=c("red", "black")) +
     labs(x = paste0(firstPC,": ", as.numeric(PCA@R2["PC1"])*100,"%"), 
          y = paste0(secondPC,": ", as.numeric(PCA@R2["PC2"])*100,"%"),
          title = title) +
