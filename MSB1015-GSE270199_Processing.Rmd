@@ -95,308 +95,86 @@ data <- readRDS(paste0(OUTPUT_FILE_LOCATION,"/GSE270199_imputed.rds"))
 metadata <- readRDS(paste0(OUTPUT_FILE_LOCATION,"/GSE270199_redmeta.rds"))
 ```
 
-
-```{r}
-#mart <- useEnsembl(biomart = "ENSEMBL_MART_ENSEMBL",
-#                   dataset = "hsapiens_gene_ensembl")
-#
-#getBM(attributes = c("affy_hg_u95av2", "hgnc_symbol", "chromosome_name", "band"),
-#      filters    = "affy_hg_u95av2",
-#      values     = c("1939_at","1503_at","1454_at"),
-#      mart       = mart)
-```
-
-
-
-
-
 #Build a similarity network and cut into clusters
 Build a similarity network, 
   first for all the samples for exploration
   then with the '700 sample' removed as it simply acts too much like an outlier
   then with just the EDS samples, as that is what we want to cluster
   then with the clusters visualized
-```{r similarity_network_function_test}
+```{r similarity_network}
 #Get some group information that can be used for color labels
 healthy_group <- rownames(metadata)[grep("healthy", metadata[,"disease_state"])]
 EDS_group <- rownames(metadata)[grep("EDS-HT", metadata[,"disease_state"])]
 Male_group <- rownames(metadata)[grep("Male", metadata[,"inferred_sex"])]
 Female_group <- rownames(metadata)[grep("Female", metadata[,"inferred_sex"])]
 
-#TAG: Test the function a bit more before moving it over to the custom_functions
-Fun_heatmap <- function(data_matrix = t(data),
-                        clusters = 2,
-                        col_side = NULL,
-                        row_side = NULL,
-                        title = NULL, 
-                        xlab = NULL, 
-                        ylab = NULL){
-
-  #Compute similarity using Euclidean
-    #Euclidean as I want simply the distance measure between the samples
-  sim_obj <- simil(data_matrix, method = "Euclidean")
-  #Convert to a matrix 
-  sim_matrix <- as.matrix(sim_obj)
-  #Set the self-correlation to NA for nicer visualization
-  sim_matrix[sim_matrix == 0] <- NA
-  
-  #Start with the colors set to NULL
-  col_color <- rep("white", ncol(sim_matrix))
-  row_color <- rep("white", nrow(sim_matrix))
-  
-  #Set sides to something so it isn't NULL and can be compared
-  if(is.null(col_side)){
-    col_side <- "nothing"
-  }
-  if(is.null(row_side)){
-    row_side <- "nothing"
-  }
-  
-  if (col_side == "sex" | row_side == "sex"){
-    #Compute the color_sex
-    color_sex <- ifelse(rownames(sim_matrix) %in% Female_group,
-                          "#F8766D", 
-                          "#00BFC4")
-    if (col_side == "sex"){
-      #col is sex
-      col_color <- color_sex
-    } else if (row_side == "sex") {
-      #row is sex
-      row_color <- color_sex
-    }
-  }
-  if (col_side == "disease" | row_side == "disease"){
-    #Compute the color_disease
-    color_disease <- ifelse(rownames(sim_matrix) %in% EDS_group,
-                              "red", 
-                              "black")
-    if (col_side == "disease"){
-      #col is disease
-      col_color <- color_disease
-    } else if (row_side == "disease") {
-      #row is disease
-      row_color <- color_disease
-    }
-  }
-  if (col_side == "disease_sex" | row_side == "disease_sex"){
-    #Compute the color_disease_sex
-    color_disease_sex <- ifelse(rownames(sim_matrix) %in% EDS_group,
-                        ifelse(rownames(sim_matrix) %in% Male_group,
-                               "maroon",
-                               "red"),
-                        ifelse(rownames(sim_matrix) %in% Male_group,
-                               "darkblue",
-                               "blue"))
-    if (col_side == "disease_sex"){
-      #col is disease_sex
-      col_color <- color_disease_sex
-    } else if (row_side == "disease_sex") {
-      #row is disease_sex
-      row_color <- color_disease_sex
-    }
-  }
-  if (col_side == "cluster" | row_side == "cluster"){
-    #Compute the color_cluster
-    
-    #Get out some clusters
-    dist_matrix <- dist(sim_matrix)
-    hc <- hclust(dist_matrix)
-    clusters_k <- cutree(hc, clusters)
-    
-    #Set the cluster to a color (can handle 4 distinct clusters)
-    color_cluster <- ifelse(clusters_k[rownames(sim_matrix)] == 1,
-                            "palegreen",
-                            ifelse(clusters_k[rownames(sim_matrix)] == 2,
-                                   "green",
-                                   ifelse(clusters_k[rownames(sim_matrix)] == 3,
-                                           "darkgreen",
-                                           ifelse(clusters_k[rownames(sim_matrix)] == 4,
-                                                  "black",
-                                                  "white"))))
-    if (col_side == "cluster"){
-      #col is color_cluster
-      col_color <- color_cluster
-    } else if (row_side == "cluster") {
-      #row is color_cluster
-      row_color <- color_cluster
-    }
-  }
-  
-  
-  #Visualize the heatmap
-  heatmap(sim_matrix, 
-          ColSideColors = col_color, 
-          RowSideColors = row_color,
-          main = title,
-          xlab = xlab, 
-          ylab = ylab,
-          cexCol = 0.5,
-          cexRow = 0.5)
+if (RUN_PLOTS){
+  #Using all the data
+  Fun_heatmap(data_matrix = t(data),
+              title = "Heatmap of all the data",
+              col_side = "sex",
+              xlab = "Sex",
+              row_side = "disease",
+              ylab = "Disease")
+}
+if (RUN_PLOTS){
+  #Without GSM8336700
+    #700 keeps acting like an outlier, wanted to see how the similarity would look without it
+  Fun_heatmap(data_matrix = t(data[,colnames(data) != "GSM8336700"]),
+              title = "Heatmap without GSM8336700",
+              col_side = "sex",
+              xlab = "Sex",
+              row_side = "disease",
+              ylab = "Disease")
+}
+if (RUN_PLOTS){
+  #With only the EDS samples
+  Fun_heatmap(data_matrix = t(data[,EDS_group]),
+              title = "Heatmap - Only EDS",
+              col_side = "sex",
+              xlab = "Sex",
+              row_side = "disease",
+              ylab = "Disease")
+}
+if (RUN_PLOTS){
+  #With 4 clusters
+  Fun_heatmap(data_matrix = t(data[,EDS_group]),
+              clusters = 4,
+              title = "Heatmap - Clustered EDS",
+              col_side = "cluster",
+              xlab = "Cluster",
+              row_side = "sex",
+              ylab = "Sex")
 }
 
-Fun_heatmap(data_matrix = t(data[,EDS_group]),
-                        clusters = 4,
-                        col_side = "cluster",
-                        row_side = "sex",
-                        title = "Heatmap of cluster and sex", 
-                        xlab = "Cluster", 
-                        ylab = "Sex")
 ```
 
-```{r similarity_network_old}
-#Get some group information that can be used for color labels
-healthy_group <- rownames(metadata)[grep("healthy", metadata[,"disease_state"])]
-EDS_group <- rownames(metadata)[grep("EDS-HT", metadata[,"disease_state"])]
-Male_group <- rownames(metadata)[grep("Male", metadata[,"inferred_sex"])]
-Female_group <- rownames(metadata)[grep("Female", metadata[,"inferred_sex"])]
-
-#Using all the data
-data_matrix <- t(data)
-
+```{r clusters}
+#Use the same code inside the function to get the clusters out and into the metadata
 #Compute similarity using Euclidean
-  #Euclidean as I want simply the distance measure between the samples
+#Euclidean as I want simply the distance measure between the samples
 sim_obj <- simil(data_matrix, method = "Euclidean")
 #Convert to a matrix 
 sim_matrix <- as.matrix(sim_obj)
 #Set the self-correlation to NA for nicer visualization
 sim_matrix[sim_matrix == 0] <- NA
-
-#Get colors for the sides
-color_sex <- ifelse(rownames(sim_matrix) %in% Female_group,
-                        "#F8766D", 
-                        "#00BFC4")
-color_disease <- ifelse(rownames(sim_matrix) %in% EDS_group,
-                            "red", 
-                            "black")
-color_disease_sex <- ifelse(rownames(sim_matrix) %in% EDS_group,
-                      ifelse(rownames(sim_matrix) %in% Male_group,
-                             "maroon",
-                             "red"),
-                      ifelse(rownames(sim_matrix) %in% Male_group,
-                             "darkblue",
-                             "blue"))
-#Visualize the heatmap
-heatmap(sim_matrix, 
-        ColSideColors = color_sex, 
-        RowSideColors = color_disease,
-        xlab = "Sex", 
-        ylab = "Disease",
-        cexCol = 0.5,
-        cexRow = 0.5)
-
-
-#Without 700
-data_matrix <- t(data[,colnames(data) != "GSM8336700"])
-
-# Compute similarity
-sim_obj <- simil(data_matrix, method = "Euclidean") # or "correlation", "Jaccard", etc.
-
-# Convert to a standard square matrix format
-sim_matrix <- as.matrix(sim_obj)
-#Set the self-correlation to NA
-sim_matrix[sim_matrix == 0] <- NA
-
-#Get colors for the sides
-color_sex <- ifelse(rownames(sim_matrix) %in% Female_group,
-                        "#F8766D", 
-                        "#00BFC4")
-color_disease <- ifelse(rownames(sim_matrix) %in% EDS_group,
-                            "red", 
-                            "black")
-color_disease_sex <- ifelse(rownames(sim_matrix) %in% EDS_group,
-                      ifelse(rownames(sim_matrix) %in% Male_group,
-                             "maroon",
-                             "red"),
-                      ifelse(rownames(sim_matrix) %in% Male_group,
-                             "darkblue",
-                             "blue"))
-#Visualize the heatmap
-heatmap(sim_matrix, 
-        ColSideColors = color_sex, 
-        RowSideColors = color_disease,
-        xlab = "Sex", 
-        ylab = "Disease",
-        cexCol = 0.5,
-        cexRow = 0.5)
-
-
-
-
-
-
-
-
-
-#With only the EDS samples
-data_matrix <- t(data[,EDS_group])
-
-# Compute similarity
-sim_obj <- simil(data_matrix, method = "Euclidean") # or "correlation", "Jaccard", etc.
-
-# Convert to a standard square matrix format
-sim_matrix <- as.matrix(sim_obj)
-#Set the self-correlation to NA
-sim_matrix[sim_matrix == 0] <- NA
-
-#Get colors for the sides
-color_sex <- ifelse(rownames(sim_matrix) %in% Female_group,
-                        "#F8766D", 
-                        "#00BFC4")
-color_disease <- ifelse(rownames(sim_matrix) %in% EDS_group,
-                            "red", 
-                            "black")
-color_disease_sex <- ifelse(rownames(sim_matrix) %in% EDS_group,
-                      ifelse(rownames(sim_matrix) %in% Male_group,
-                             "maroon",
-                             "red"),
-                      ifelse(rownames(sim_matrix) %in% Male_group,
-                             "darkblue",
-                             "blue"))
-#Visualize the heatmap
-heatmap(sim_matrix, 
-        ColSideColors = color_sex, 
-        RowSideColors = color_disease,
-        xlab = "Sex", 
-        ylab = "Disease",
-        cexCol = 0.5,
-        cexRow = 0.5)
-
-
-
-
-
-
-
-#Get out some clusters
+#Get the dissimilarity
+  #The default of dist is also Euclidean, just like in the simil 
 dist_matrix <- dist(sim_matrix)
+#Get the hierarchical clustering
 hc <- hclust(dist_matrix)
-#plot(hc)
+#Get the 4 clusters
 clusters_k <- cutree(hc, 4)
+clusters_k <- as.data.frame(clusters_k)
+#Set the controls to cluster 0
+clusters_k[healthy_group,] <- 0
 
-#Set the cluster to a color (can handle 4 distinct clusters)
-color_cluster <- ifelse(clusters_k[rownames(sim_matrix)] == 1,
-                        "palegreen",
-                        ifelse(clusters_k[rownames(sim_matrix)] == 2,
-                               "green",
-                               ifelse(clusters_k[rownames(sim_matrix)] == 3,
-                                       "darkgreen",
-                                       ifelse(clusters_k[rownames(sim_matrix)] == 4,
-                                              "black",
-                                              "white"))))
+#TAG: CONTINUE HERE
+#TAG: Go back to metadata in the previous file and remove the Row.names to prevent the duplicate issue here
+temp <- merge(metadata, clusters_k, by = "row.names")
+rownames(temp) <- temp$Row.names
+temp$Row.names <- NULL
 
-#Visualize the heatmap
-heatmap(sim_matrix, 
-        ColSideColors = color_cluster, 
-        RowSideColors = color_sex,
-        xlab = "Cluster", 
-        ylab = "Sex",
-        cexCol = 0.5,
-        cexRow = 0.5)
-
-```
-
-```{r}
-stop()
 ```
 
 

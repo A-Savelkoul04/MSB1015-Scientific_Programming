@@ -243,6 +243,154 @@ Fun_plot_biplot <- function(PCA,
 }
 
 #####################
+### Heatmap       ###
+#####################
+
+Fun_heatmap <- function(data_matrix = t(data),
+                        clusters = 2,
+                        col_side = NULL,
+                        row_side = NULL,
+                        title = NULL, 
+                        xlab = NULL, 
+                        ylab = NULL){
+  
+  #Compute similarity using Euclidean
+  #Euclidean as I want simply the distance measure between the samples
+  sim_obj <- simil(data_matrix, method = "Euclidean")
+  #Convert to a matrix 
+  sim_matrix <- as.matrix(sim_obj)
+  #Set the self-correlation to NA for nicer visualization
+  sim_matrix[sim_matrix == 0] <- NA
+  
+  #Start with the colors set to NULL
+  col_color <- rep("white", ncol(sim_matrix))
+  row_color <- rep("white", nrow(sim_matrix))
+  
+  #Start to fill the legend
+  legend_labels <- NULL
+  legend_colors <- NULL
+  
+  #Set sides to something so it isn't NULL and can be compared
+  if(is.null(col_side)){
+    col_side <- "nothing"
+  }
+  if(is.null(row_side)){
+    row_side <- "nothing"
+  }
+  
+  if (col_side == "sex" | row_side == "sex"){
+    #Compute the color_sex
+    color_sex <- ifelse(rownames(sim_matrix) %in% Female_group,
+                        "#F8766D", 
+                        "#00BFC4")
+    
+    #Note the data in the legend
+    legend_labels <- c(legend_labels, "Female", "Male")
+    legend_colors <- c(legend_colors, "#F8766D", "#00BFC4")
+    
+    if (col_side == "sex"){
+      #col is sex
+      col_color <- color_sex
+    } else if (row_side == "sex") {
+      #row is sex
+      row_color <- color_sex
+    }
+  }
+  if (col_side == "disease" | row_side == "disease"){
+    #Compute the color_disease
+    color_disease <- ifelse(rownames(sim_matrix) %in% EDS_group,
+                            "red", 
+                            "black")
+    
+    #Note the data in the legend
+    legend_labels <- c(legend_labels, "EDS-HT/JHS", "Healthy")
+    legend_colors <- c(legend_colors, "red", "black")
+    
+    if (col_side == "disease"){
+      #col is disease
+      col_color <- color_disease
+    } else if (row_side == "disease") {
+      #row is disease
+      row_color <- color_disease
+    }
+  }
+  if (col_side == "disease_sex" | row_side == "disease_sex"){
+    #Compute the color_disease_sex
+    color_disease_sex <- ifelse(rownames(sim_matrix) %in% EDS_group,
+                                ifelse(rownames(sim_matrix) %in% Male_group,
+                                       "maroon",
+                                       "red"),
+                                ifelse(rownames(sim_matrix) %in% Male_group,
+                                       "darkblue",
+                                       "blue"))
+    
+    #Note the data in the legend
+    legend_labels <- c(legend_labels, "EDS-HT/JHS Male", "EDS-HT/JHS Female", "Healthy Male", "Healthy Female")
+    legend_colors <- c(legend_colors, "maroon", "red", "darkblue", "blue")
+    
+    if (col_side == "disease_sex"){
+      #col is disease_sex
+      col_color <- color_disease_sex
+    } else if (row_side == "disease_sex") {
+      #row is disease_sex
+      row_color <- color_disease_sex
+    }
+  }
+  if (col_side == "cluster" | row_side == "cluster"){
+    #Compute the color_cluster
+    
+    #Get out some clusters
+    dist_matrix <- dist(sim_matrix)
+    hc <- hclust(dist_matrix)
+    clusters_k <- cutree(hc, clusters)
+    
+    #Set the cluster to a color (can handle 4 distinct clusters)
+    color_cluster <- ifelse(clusters_k[rownames(sim_matrix)] == 1,
+                            "palegreen",
+                            ifelse(clusters_k[rownames(sim_matrix)] == 2,
+                                   "green",
+                                   ifelse(clusters_k[rownames(sim_matrix)] == 3,
+                                          "darkgreen",
+                                          ifelse(clusters_k[rownames(sim_matrix)] == 4,
+                                                 "black",
+                                                 "white"))))
+    
+    #As the amount of clusters can change, so should the amount of colors that get put in the label
+      #The reppitition of white means that the clusters will always have enough labels available, even when there is no unique color for it
+    cluster_colors <- c("palegreen", "green", "darkgreen", "black", rep("white",clusters))
+
+    #Note the data in the legend
+    legend_labels <- c(legend_labels, paste0("Cluster ", 1:clusters))
+    legend_colors <- c(legend_colors, cluster_colors[1:clusters])
+    
+    if (col_side == "cluster"){
+      #col is color_cluster
+      col_color <- color_cluster
+    } else if (row_side == "cluster") {
+      #row is color_cluster
+      row_color <- color_cluster
+    }
+  }
+  
+  
+  #Visualize the heatmap
+  heatmap(sim_matrix, 
+          ColSideColors = col_color, 
+          RowSideColors = row_color,
+          main = title,
+          xlab = xlab, 
+          ylab = ylab,
+          cexCol = 0.5,
+          cexRow = 0.5)
+  
+  
+  #If there is legend data to display, display it
+  if (!is.null(legend_labels)){
+    legend(x="topright", legend=legend_labels, 
+           fill=legend_colors)
+  }
+}
+#####################
 ### Feedback      ###
 #####################
 
