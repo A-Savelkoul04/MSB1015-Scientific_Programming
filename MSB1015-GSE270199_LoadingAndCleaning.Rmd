@@ -402,7 +402,7 @@ Plot all of the different data created in the script so far to compare the diffe
 *The missingness plots will create a warning, I elected to ignore this warning for now.* 
 ```{r missingness_plots}
 #Create color_groups to color the labels of the samples so it is easier to see what the controls are vs the patients
-color_groups <- ifelse(GSE270199.redmeta[colnames(GSE270199),"disease_state"] == "EDS-HT/JHS", "#FF0000", "#0000FF")
+color_groups <- ifelse(GSE270199.redmeta[colnames(GSE270199),"disease_state"] == "EDS-HT/JHS", "red", "black")
 
 #Plot the missingness plots
 if (RUN_PLOTS){
@@ -617,7 +617,7 @@ Compare what the imputation has done to the missingness of the data.
 ```{r imputation_result}
 #DUPLICATE: color_groups is created above as well, but repeated for clarity
 #Create color_groups to color the labels of the samples so it is easier to see what the controls are vs the patients
-color_groups <- ifelse(GSE270199.redmeta[colnames(GSE270199),"disease_state"] == "EDS-HT/JHS", "#FF0000", "#0000FF")
+color_groups <- ifelse(GSE270199.redmeta[colnames(GSE270199),"disease_state"] == "EDS-HT/JHS", "red", "black")
 
 #Visualize the missingness plots
 if (RUN_PLOTS){

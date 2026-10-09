@@ -37,6 +37,14 @@ Fun_install_libraries <- function(){
     BiocManager::install("tibble")  
   if (!requireNamespace("RCy3", quietly = TRUE)) {
     BiocManager::install("RCy3")}
+  if (!requireNamespace("biomaRt", quietly = TRUE)) {
+    BiocManager::install("biomaRt")}
+  if (!requireNamespace("org.Hs.eg.db", quietly = TRUE)) {
+    BiocManager::install("org.Hs.eg.db")}
+  if (!requireNamespace("AnnotationDbi", quietly = TRUE)) {
+    BiocManager::install("AnnotationDbi")}
+  if (!require("proxy", quietly = TRUE))
+    install.packages("proxy")
 
   
   if (!requireNamespace("randomForest", quietly = TRUE)) {
@@ -66,6 +74,10 @@ Fun_load_libraries <- function(){
   library(dplyr)
   library(tibble)
   library(RCy3)
+  library(biomaRt)
+  library(org.Hs.eg.db)
+  library(AnnotationDbi)
+  library(proxy)
 
   #library(pcadapt)
   #library(hugene10stv1cdf)

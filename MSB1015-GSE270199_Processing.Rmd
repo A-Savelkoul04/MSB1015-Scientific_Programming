@@ -10,7 +10,7 @@ Make sure that the previous file has been run and has saved the rds files (GSE27
 #Clear the global environment
   Clear the environment to reduce the chance of issues on reruns
 ```{r clear_global}
-rm(list=ls())
+#rm(list=ls())
 ```
 #Setting the working directory (wd)
 Other files are assumed to be located in the same, or downstream maps from the location of this file. The location of this file is used as a reference point to find the other files. 
@@ -89,14 +89,321 @@ Check if the values that were given in the settings are allowed
 Fun_settings_check2()
 ```
 #Load the data from the previous file
+Now named data and metadata
 ```{r}
 data <- readRDS(paste0(OUTPUT_FILE_LOCATION,"/GSE270199_imputed.rds"))
 metadata <- readRDS(paste0(OUTPUT_FILE_LOCATION,"/GSE270199_redmeta.rds"))
 ```
 
 
+```{r}
+#mart <- useEnsembl(biomart = "ENSEMBL_MART_ENSEMBL",
+#                   dataset = "hsapiens_gene_ensembl")
+#
+#getBM(attributes = c("affy_hg_u95av2", "hgnc_symbol", "chromosome_name", "band"),
+#      filters    = "affy_hg_u95av2",
+#      values     = c("1939_at","1503_at","1454_at"),
+#      mart       = mart)
+```
 
 
+
+
+
+#Build a similarity network and cut into clusters
+Build a similarity network, 
+  first for all the samples for exploration
+  then with the '700 sample' removed as it simply acts too much like an outlier
+  then with just the EDS samples, as that is what we want to cluster
+  then with the clusters visualized
+```{r similarity_network_function_test}
+#Get some group information that can be used for color labels
+healthy_group <- rownames(metadata)[grep("healthy", metadata[,"disease_state"])]
+EDS_group <- rownames(metadata)[grep("EDS-HT", metadata[,"disease_state"])]
+Male_group <- rownames(metadata)[grep("Male", metadata[,"inferred_sex"])]
+Female_group <- rownames(metadata)[grep("Female", metadata[,"inferred_sex"])]
+
+#TAG: Test the function a bit more before moving it over to the custom_functions
+Fun_heatmap <- function(data_matrix = t(data),
+                        clusters = 2,
+                        col_side = NULL,
+                        row_side = NULL,
+                        title = NULL, 
+                        xlab = NULL, 
+                        ylab = NULL){
+
+  #Compute similarity using Euclidean
+    #Euclidean as I want simply the distance measure between the samples
+  sim_obj <- simil(data_matrix, method = "Euclidean")
+  #Convert to a matrix 
+  sim_matrix <- as.matrix(sim_obj)
+  #Set the self-correlation to NA for nicer visualization
+  sim_matrix[sim_matrix == 0] <- NA
+  
+  #Start with the colors set to NULL
+  col_color <- rep("white", ncol(sim_matrix))
+  row_color <- rep("white", nrow(sim_matrix))
+  
+  #Set sides to something so it isn't NULL and can be compared
+  if(is.null(col_side)){
+    col_side <- "nothing"
+  }
+  if(is.null(row_side)){
+    row_side <- "nothing"
+  }
+  
+  if (col_side == "sex" | row_side == "sex"){
+    #Compute the color_sex
+    color_sex <- ifelse(rownames(sim_matrix) %in% Female_group,
+                          "#F8766D", 
+                          "#00BFC4")
+    if (col_side == "sex"){
+      #col is sex
+      col_color <- color_sex
+    } else if (row_side == "sex") {
+      #row is sex
+      row_color <- color_sex
+    }
+  }
+  if (col_side == "disease" | row_side == "disease"){
+    #Compute the color_disease
+    color_disease <- ifelse(rownames(sim_matrix) %in% EDS_group,
+                              "red", 
+                              "black")
+    if (col_side == "disease"){
+      #col is disease
+      col_color <- color_disease
+    } else if (row_side == "disease") {
+      #row is disease
+      row_color <- color_disease
+    }
+  }
+  if (col_side == "disease_sex" | row_side == "disease_sex"){
+    #Compute the color_disease_sex
+    color_disease_sex <- ifelse(rownames(sim_matrix) %in% EDS_group,
+                        ifelse(rownames(sim_matrix) %in% Male_group,
+                               "maroon",
+                               "red"),
+                        ifelse(rownames(sim_matrix) %in% Male_group,
+                               "darkblue",
+                               "blue"))
+    if (col_side == "disease_sex"){
+      #col is disease_sex
+      col_color <- color_disease_sex
+    } else if (row_side == "disease_sex") {
+      #row is disease_sex
+      row_color <- color_disease_sex
+    }
+  }
+  if (col_side == "cluster" | row_side == "cluster"){
+    #Compute the color_cluster
+    
+    #Get out some clusters
+    dist_matrix <- dist(sim_matrix)
+    hc <- hclust(dist_matrix)
+    clusters_k <- cutree(hc, clusters)
+    
+    #Set the cluster to a color (can handle 4 distinct clusters)
+    color_cluster <- ifelse(clusters_k[rownames(sim_matrix)] == 1,
+                            "palegreen",
+                            ifelse(clusters_k[rownames(sim_matrix)] == 2,
+                                   "green",
+                                   ifelse(clusters_k[rownames(sim_matrix)] == 3,
+                                           "darkgreen",
+                                           ifelse(clusters_k[rownames(sim_matrix)] == 4,
+                                                  "black",
+                                                  "white"))))
+    if (col_side == "cluster"){
+      #col is color_cluster
+      col_color <- color_cluster
+    } else if (row_side == "cluster") {
+      #row is color_cluster
+      row_color <- color_cluster
+    }
+  }
+  
+  
+  #Visualize the heatmap
+  heatmap(sim_matrix, 
+          ColSideColors = col_color, 
+          RowSideColors = row_color,
+          main = title,
+          xlab = xlab, 
+          ylab = ylab,
+          cexCol = 0.5,
+          cexRow = 0.5)
+}
+
+Fun_heatmap(data_matrix = t(data[,EDS_group]),
+                        clusters = 4,
+                        col_side = "cluster",
+                        row_side = "sex",
+                        title = "Heatmap of cluster and sex", 
+                        xlab = "Cluster", 
+                        ylab = "Sex")
+```
+
+```{r similarity_network_old}
+#Get some group information that can be used for color labels
+healthy_group <- rownames(metadata)[grep("healthy", metadata[,"disease_state"])]
+EDS_group <- rownames(metadata)[grep("EDS-HT", metadata[,"disease_state"])]
+Male_group <- rownames(metadata)[grep("Male", metadata[,"inferred_sex"])]
+Female_group <- rownames(metadata)[grep("Female", metadata[,"inferred_sex"])]
+
+#Using all the data
+data_matrix <- t(data)
+
+#Compute similarity using Euclidean
+  #Euclidean as I want simply the distance measure between the samples
+sim_obj <- simil(data_matrix, method = "Euclidean")
+#Convert to a matrix 
+sim_matrix <- as.matrix(sim_obj)
+#Set the self-correlation to NA for nicer visualization
+sim_matrix[sim_matrix == 0] <- NA
+
+#Get colors for the sides
+color_sex <- ifelse(rownames(sim_matrix) %in% Female_group,
+                        "#F8766D", 
+                        "#00BFC4")
+color_disease <- ifelse(rownames(sim_matrix) %in% EDS_group,
+                            "red", 
+                            "black")
+color_disease_sex <- ifelse(rownames(sim_matrix) %in% EDS_group,
+                      ifelse(rownames(sim_matrix) %in% Male_group,
+                             "maroon",
+                             "red"),
+                      ifelse(rownames(sim_matrix) %in% Male_group,
+                             "darkblue",
+                             "blue"))
+#Visualize the heatmap
+heatmap(sim_matrix, 
+        ColSideColors = color_sex, 
+        RowSideColors = color_disease,
+        xlab = "Sex", 
+        ylab = "Disease",
+        cexCol = 0.5,
+        cexRow = 0.5)
+
+
+#Without 700
+data_matrix <- t(data[,colnames(data) != "GSM8336700"])
+
+# Compute similarity
+sim_obj <- simil(data_matrix, method = "Euclidean") # or "correlation", "Jaccard", etc.
+
+# Convert to a standard square matrix format
+sim_matrix <- as.matrix(sim_obj)
+#Set the self-correlation to NA
+sim_matrix[sim_matrix == 0] <- NA
+
+#Get colors for the sides
+color_sex <- ifelse(rownames(sim_matrix) %in% Female_group,
+                        "#F8766D", 
+                        "#00BFC4")
+color_disease <- ifelse(rownames(sim_matrix) %in% EDS_group,
+                            "red", 
+                            "black")
+color_disease_sex <- ifelse(rownames(sim_matrix) %in% EDS_group,
+                      ifelse(rownames(sim_matrix) %in% Male_group,
+                             "maroon",
+                             "red"),
+                      ifelse(rownames(sim_matrix) %in% Male_group,
+                             "darkblue",
+                             "blue"))
+#Visualize the heatmap
+heatmap(sim_matrix, 
+        ColSideColors = color_sex, 
+        RowSideColors = color_disease,
+        xlab = "Sex", 
+        ylab = "Disease",
+        cexCol = 0.5,
+        cexRow = 0.5)
+
+
+
+
+
+
+
+
+
+#With only the EDS samples
+data_matrix <- t(data[,EDS_group])
+
+# Compute similarity
+sim_obj <- simil(data_matrix, method = "Euclidean") # or "correlation", "Jaccard", etc.
+
+# Convert to a standard square matrix format
+sim_matrix <- as.matrix(sim_obj)
+#Set the self-correlation to NA
+sim_matrix[sim_matrix == 0] <- NA
+
+#Get colors for the sides
+color_sex <- ifelse(rownames(sim_matrix) %in% Female_group,
+                        "#F8766D", 
+                        "#00BFC4")
+color_disease <- ifelse(rownames(sim_matrix) %in% EDS_group,
+                            "red", 
+                            "black")
+color_disease_sex <- ifelse(rownames(sim_matrix) %in% EDS_group,
+                      ifelse(rownames(sim_matrix) %in% Male_group,
+                             "maroon",
+                             "red"),
+                      ifelse(rownames(sim_matrix) %in% Male_group,
+                             "darkblue",
+                             "blue"))
+#Visualize the heatmap
+heatmap(sim_matrix, 
+        ColSideColors = color_sex, 
+        RowSideColors = color_disease,
+        xlab = "Sex", 
+        ylab = "Disease",
+        cexCol = 0.5,
+        cexRow = 0.5)
+
+
+
+
+
+
+
+#Get out some clusters
+dist_matrix <- dist(sim_matrix)
+hc <- hclust(dist_matrix)
+#plot(hc)
+clusters_k <- cutree(hc, 4)
+
+#Set the cluster to a color (can handle 4 distinct clusters)
+color_cluster <- ifelse(clusters_k[rownames(sim_matrix)] == 1,
+                        "palegreen",
+                        ifelse(clusters_k[rownames(sim_matrix)] == 2,
+                               "green",
+                               ifelse(clusters_k[rownames(sim_matrix)] == 3,
+                                       "darkgreen",
+                                       ifelse(clusters_k[rownames(sim_matrix)] == 4,
+                                              "black",
+                                              "white"))))
+
+#Visualize the heatmap
+heatmap(sim_matrix, 
+        ColSideColors = color_cluster, 
+        RowSideColors = color_sex,
+        xlab = "Cluster", 
+        ylab = "Sex",
+        cexCol = 0.5,
+        cexRow = 0.5)
+
+```
+
+```{r}
+stop()
+```
+
+
+
+
+#Experimenting
+Experimenting with the wilcox.test
 ```{r}
 #Get the patient identifiers
 healthy_group <- rownames(metadata)[grep("healthy", metadata[,"disease_state"])]
@@ -106,6 +413,9 @@ EDS_group <- rownames(metadata)[grep("EDS-HT", metadata[,"disease_state"])]
 sum <- 0
 temp <- NULL
 for (i in 1:nrow(data)){
+  
+  
+  
 x <- (as.double(data[i,healthy_group]))
 y <- (as.double(data[i,EDS_group]))
 res <- wilcox.test(x, y, paired = FALSE, alternative = "two.sided")
@@ -174,6 +484,17 @@ networkSuid = getNetworkSuid()
   
 #Advice from Agi:
 For two independent groups you should use the Mann–Whitney U test (Wilcoxon rank-sum test) can be applied to each feature. In addition to the p-value, report the fold change (FC) to describe the magnitude and direction of the difference. Since you have outliers use median instead of mean.  Because many features are tested please correct the  p-values for multiple testing using the Benjamini–Hochberg FDR procedure.
+
+#Advice from Agi:
+(data[feature, group])
+median is for the FC calculation between the groups
+
+Looking at the variability of the genes
+You will not expect the variability to go to an unreasenably high value
+
+imput data --> use PCA as dimentionallity reduction --> use the scores for similarity / other clustering / affinity propagation clustering (available in R), creates the clusters
+PCA still contains the features but only contains (ex. 90%) get clusters, go back to real data and color code the cluster to what was found in the reduction on the real data
+CHECK THAT THERE IS NO STRUCTURE IN THE RESIDUALS
 
 #Plan:
 * Get a similarity network for the patients
