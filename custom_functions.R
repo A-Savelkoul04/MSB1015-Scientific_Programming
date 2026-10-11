@@ -142,14 +142,15 @@ Fun_plot_PCA_scores <- function(PCA, metadata = GSE270199.redmeta, firstPC = "PC
   PCA.scores <- as.data.frame(PCA.scores)
   PCA.scores <- merge(x = PCA.scores, y = metadata, by = 'row.names')
   
-  ggplot(PCA.scores, aes(x=eval(parse(text=firstPC)), y=eval(parse(text=secondPC)), color = disease_state, fill = inferred_sex, label=Row.names)) +
-    geom_point(shape = 21) + 
-    scale_color_manual(values=c("red", "black")) +
-    scale_fill_manual(values=c("#F8766D", "#00BFC4")) +
-    geom_text(hjust=0, vjust=0) +
-    labs(x = paste0(firstPC,": ", as.numeric(PCA@R2[firstPC])*100,"%"), 
-         y = paste0(secondPC,": ", as.numeric(PCA@R2[secondPC])*100,"%"),
-         title = title)
+  p <- ggplot(PCA.scores, aes(x=eval(parse(text=firstPC)), y=eval(parse(text=secondPC)), color = disease_state, fill = inferred_sex, label=Row.names)) +
+            geom_point(shape = 21) + 
+            scale_color_manual(values=c("red", "black")) +
+            scale_fill_manual(values=c("#F8766D", "#00BFC4")) +
+            geom_text(hjust=0, vjust=0) +
+            labs(x = paste0(firstPC,": ", as.numeric(PCA@R2[firstPC])*100,"%"), 
+                 y = paste0(secondPC,": ", as.numeric(PCA@R2[secondPC])*100,"%"),
+                 title = title)
+  print(p)
 }
 
 #####################
@@ -160,11 +161,12 @@ Fun_plot_PCA_loadings <- function(PCA, firstPC = "PC1", secondPC = "PC2", title 
   PCA.loadings <- PCA@loadings
   PCA.loadings <- as.data.frame(PCA.loadings)
   
-  ggplot(PCA.loadings, aes(x=eval(parse(text=firstPC)), y=eval(parse(text=secondPC)))) +
-    geom_point() +
-    labs(x = paste0(firstPC,": ", as.numeric(PCA@R2[firstPC])*100,"%"), 
-         y = paste0(secondPC,": ", as.numeric(PCA@R2[secondPC])*100,"%"),
-         title = title)
+  p <- ggplot(PCA.loadings, aes(x=eval(parse(text=firstPC)), y=eval(parse(text=secondPC)))) +
+      geom_point() +
+      labs(x = paste0(firstPC,": ", as.numeric(PCA@R2[firstPC])*100,"%"), 
+           y = paste0(secondPC,": ", as.numeric(PCA@R2[secondPC])*100,"%"),
+           title = title)
+  print(p)
 }
 
 
@@ -218,28 +220,29 @@ Fun_plot_biplot <- function(PCA,
     )
   
   
-  ggplot(PCA.scores, aes(eval(parse(text=firstPC)), eval(parse(text=secondPC)))) +
-    geom_point(shape = 21, aes(color = disease_state, fill = inferred_sex)) +
-    scale_color_manual(values=c("red", "black")) +
-    scale_fill_manual(values=c("#F8766D", "#00BFC4")) +
-    labs(x = paste0(firstPC,": ", as.numeric(PCA@R2["PC1"])*100,"%"), 
-         y = paste0(secondPC,": ", as.numeric(PCA@R2["PC2"])*100,"%"),
-         title = title) +
-    geom_segment(
-      data = top_loadings,
-      aes(x = 0, y = 0, xend = firstPC_scaled, yend = secondPC_scaled),
-      arrow = arrow(length = unit(0.25, "cm"), type = "open"),
-      color = "red", alpha = 0.5) +
-    
-    # Gene labels 
-    geom_text(data = top_loadings, 
-              aes( x = firstPC_scaled, y = secondPC_scaled, label = gene ), 
-              inherit.aes = TRUE, 
-              hjust = 0, vjust = 0, size = 2 ) + 
-    # Reference lines 
-    geom_hline( yintercept = 0, linetype = "dashed", alpha = 0.5 ) + 
-    geom_vline( xintercept = 0, linetype = "dashed", alpha = 0.5 )
+  p <- ggplot(PCA.scores, aes(eval(parse(text=firstPC)), eval(parse(text=secondPC)))) +
+      geom_point(shape = 21, aes(color = disease_state, fill = inferred_sex)) +
+      scale_color_manual(values=c("red", "black")) +
+      scale_fill_manual(values=c("#F8766D", "#00BFC4")) +
+      labs(x = paste0(firstPC,": ", as.numeric(PCA@R2["PC1"])*100,"%"), 
+           y = paste0(secondPC,": ", as.numeric(PCA@R2["PC2"])*100,"%"),
+           title = title) +
+      geom_segment(
+        data = top_loadings,
+        aes(x = 0, y = 0, xend = firstPC_scaled, yend = secondPC_scaled),
+        arrow = arrow(length = unit(0.25, "cm"), type = "open"),
+        color = "red", alpha = 0.5) +
+      
+      # Gene labels 
+      geom_text(data = top_loadings, 
+                aes( x = firstPC_scaled, y = secondPC_scaled, label = gene ), 
+                inherit.aes = TRUE, 
+                hjust = 0, vjust = 0, size = 2 ) + 
+      # Reference lines 
+      geom_hline( yintercept = 0, linetype = "dashed", alpha = 0.5 ) + 
+      geom_vline( xintercept = 0, linetype = "dashed", alpha = 0.5 )
   
+  print(p)
 }
 
 #####################
@@ -254,13 +257,17 @@ Fun_heatmap <- function(data_matrix = t(data),
                         xlab = NULL, 
                         ylab = NULL){
   
-  #Compute similarity using Euclidean
-  #Euclidean as I want simply the distance measure between the samples
-  sim_obj <- simil(data_matrix, method = "Euclidean")
+  #Compute similarity using correlation
+  #Correlation as I want to compare patterns
+  #Pairwise to compare everyone against everyone
+  sim_obj <- simil(data_matrix, 
+                   method = "correlation",
+                   pairwise = TRUE) 
   #Convert to a matrix 
   sim_matrix <- as.matrix(sim_obj)
-  #Set the self-correlation to NA for nicer visualization
-  sim_matrix[sim_matrix == 0] <- NA
+  #Set the self-correlation to 1 as the function gives a self correlation of zero back
+    #This makes the visualization much clearer and allows for the dist_matrix to be made
+  diag(sim_matrix) <- 1
   
   #Start with the colors set to NULL
   col_color <- rep("white", ncol(sim_matrix))
@@ -339,9 +346,16 @@ Fun_heatmap <- function(data_matrix = t(data),
   if (col_side == "cluster" | row_side == "cluster"){
     #Compute the color_cluster
     
-    #Get out some clusters
-    dist_matrix <- dist(sim_matrix)
-    hc <- hclust(dist_matrix)
+    #Get out some clusters by creating a dist_matrix as well
+    dist_matrix <- 1-sim_matrix
+    diag(dist_matrix) <- 0
+    dist_matrix <- as.dist(dist_matrix)
+    
+    #Get dendrogram
+    hc <- hclust(dist_matrix, method = "complete")
+    #Also plot the dendrogram for extra information
+    plot(hc)
+    #Cut into clusters
     clusters_k <- cutree(hc, clusters)
     
     #Set the cluster to a color (can handle 4 distinct clusters)
@@ -381,7 +395,8 @@ Fun_heatmap <- function(data_matrix = t(data),
           xlab = xlab, 
           ylab = ylab,
           cexCol = 0.5,
-          cexRow = 0.5)
+          cexRow = 0.5,
+          hclustfun = function(x) hclust(x, method = "complete"))
   
   
   #If there is legend data to display, display it

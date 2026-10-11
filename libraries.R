@@ -45,7 +45,10 @@ Fun_install_libraries <- function(){
     BiocManager::install("AnnotationDbi")}
   if (!require("proxy", quietly = TRUE))
     install.packages("proxy")
-
+  if (!requireNamespace("EnhancedVolcano", quietly = TRUE)) {
+    BiocManager::install("EnhancedVolcano")}
+  if (!require("rmarkdown", quietly = TRUE))
+    install.packages("gprofiler2")
   
   if (!requireNamespace("randomForest", quietly = TRUE)) {
     BiocManager::install("randomForest")}
@@ -78,6 +81,8 @@ Fun_load_libraries <- function(){
   library(org.Hs.eg.db)
   library(AnnotationDbi)
   library(proxy)
+  library(EnhancedVolcano)
+  library(gprofiler2)
 
   #library(pcadapt)
   #library(hugene10stv1cdf)

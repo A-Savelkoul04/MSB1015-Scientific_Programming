@@ -10,7 +10,7 @@ Make sure that the previous file has been run and has saved the rds files (GSE27
 #Clear the global environment
   Clear the environment to reduce the chance of issues on reruns
 ```{r clear_global}
-#rm(list=ls())
+rm(list=ls())
 ```
 #Setting the working directory (wd)
 Other files are assumed to be located in the same, or downstream maps from the location of this file. The location of this file is used as a reference point to find the other files. 
@@ -137,9 +137,9 @@ if (RUN_PLOTS){
               ylab = "Disease")
 }
 if (RUN_PLOTS){
-  #With 4 clusters
+  #With 2 clusters
   Fun_heatmap(data_matrix = t(data[,EDS_group]),
-              clusters = 4,
+              clusters = 2,
               title = "Heatmap - Clustered EDS",
               col_side = "cluster",
               xlab = "Cluster",
@@ -151,62 +151,360 @@ if (RUN_PLOTS){
 
 ```{r clusters}
 #Use the same code inside the function to get the clusters out and into the metadata
-#Compute similarity using Euclidean
-#Euclidean as I want simply the distance measure between the samples
-sim_obj <- simil(data_matrix, method = "Euclidean")
+#Compute similarity using correlation
+#Correlation as I want to compare patterns
+sim_obj <- simil(t(data[,EDS_group]), 
+                  method = "correlation",
+                  pairwise = TRUE) 
 #Convert to a matrix 
 sim_matrix <- as.matrix(sim_obj)
-#Set the self-correlation to NA for nicer visualization
-sim_matrix[sim_matrix == 0] <- NA
-#Get the dissimilarity
-  #The default of dist is also Euclidean, just like in the simil 
-dist_matrix <- dist(sim_matrix)
-#Get the hierarchical clustering
-hc <- hclust(dist_matrix)
-#Get the 4 clusters
-clusters_k <- cutree(hc, 4)
+#Set the self-correlation to 1 as the function gives a self correlation of zero back
+diag(sim_matrix) <- 1
+
+#Get out some clusters by creating a dist_matrix as well
+dist_matrix <- 1-sim_matrix
+diag(dist_matrix) <- 0
+dist_matrix <- as.dist(dist_matrix)
+  
+#Get dendrogram
+hc <- hclust(dist_matrix, method = "complete")
+
+#Cut into 2 clusters
+clusters_k <- cutree(hc, 2)
 clusters_k <- as.data.frame(clusters_k)
-#Set the controls to cluster 0
+#Set the controls to cluster 0 so that the information can be added to the broader metadata file
 clusters_k[healthy_group,] <- 0
 
-#TAG: CONTINUE HERE
-#TAG: Go back to metadata in the previous file and remove the Row.names to prevent the duplicate issue here
-temp <- merge(metadata, clusters_k, by = "row.names")
-rownames(temp) <- temp$Row.names
-temp$Row.names <- NULL
+#Add the cluster information to the metadata
+metadata <- merge(metadata, clusters_k, by = "row.names")
+rownames(metadata) <- metadata$Row.names
+metadata$Row.names <- NULL
+```
+
+
+#wilcox.test
+Performing a wilcox test to find p_values between the clusters 
+  Note to myself: I tested if the results of the p-values would change if I unlogged the data, the p-values seem to stay the same as this source also mentions (https://stats.stackexchange.com/questions/178744/how-do-logarithmic-measurements-affect-the-wilcoxon-rank-sum-test)
+```{r wilcox_test}
+#TAG: If time allows, make the code more modular so it can handle more than 2 clusters
+#Get cluster identifiers inside a list
+  #The length of the list is dependent on the amount of unique values in metadata[,"clusters_k"] minus 1 (to account for the cluster 0 controls)
+cluster_list <- list()
+for (cluster in 1:(length(unique(metadata[,"clusters_k"]))-1)){
+cluster_list[[paste0("cluster_",cluster,"_group")]] <- rownames(metadata)[grep(cluster, metadata[,"clusters_k"])]
+}
+
+#Set up cluster_1_vs_2 to save the p-value and statistic results
+cluster_1_vs_2 <- data.frame(matrix(nrow = nrow(data), ncol = 2))
+rownames(cluster_1_vs_2) <- rownames(data)
+colnames(cluster_1_vs_2) <- c("p_value","statistic")
+
+for (i in 1:nrow(data)){
+
+#Use the two.sided setting as the goal is not to check if one is greater/less than the other but to see if either one of them are different from the other
+res <- wilcox.test((as.double(data[i,unname(unlist(cluster_list[1]))])), 
+                   (as.double(data[i,unname(unlist(cluster_list[2]))])), 
+                   paired = FALSE, 
+                   alternative = "two.sided")
+#Save the result
+cluster_1_vs_2[i,"p_value"] <- res$p.value
+cluster_1_vs_2[i,"statistic"] <- res$statistic
+}
+
+#Also add an adjusted p value using FDR
+cluster_1_vs_2[,"adj_p_value"] <- p.adjust(cluster_1_vs_2[,"p_value"], method = 'fdr', n = length(cluster_1_vs_2[,"p_value"]))
+
+#Give some feedback
+cat(paste0(sum(cluster_1_vs_2[,"p_value"] < 0.05), 
+           " (",
+           round((sum(cluster_1_vs_2[,"p_value"] < 0.05)/nrow(cluster_1_vs_2))*100,2),
+           "%) made it to a p-value of 0.05 or below between the two clusters."))
+
+```
+#Get log2FC between the clusters
+The formula used to calculate the fold change was found at:
+https://www.biostars.org/p/342756/
+  --> mean(log2(Group1)) - mean(log2(Group2))
+    --> median(log2(Group1)) - median(log2(Group2))
+Calculating both as median can handle outliers better on advice from Agi
+```{r log2FC}
+#As it was assumed that the data was already in log2 notation, the log2FC should be as simple as taking the mean/median and subtracting
+
+#Get the median of the clusters and place it in a df
+data.cluster <- data.frame(matrix(nrow = nrow(data),ncol = 0))
+rownames(data.cluster) <- rownames(data)
+
+for (i in 1:nrow(data)){
+  data.cluster[i,"cluster_1_mean"] <- mean(as.double(data[i,cluster_list$cluster_1_group]))
+  data.cluster[i,"cluster_2_mean"] <- mean(as.double(data[i,cluster_list$cluster_2_group]))
+  data.cluster[i,"cluster_1_median"] <- median(as.double(data[i,cluster_list$cluster_1_group]))
+  data.cluster[i,"cluster_2_median"] <- median(as.double(data[i,cluster_list$cluster_2_group]))
+}
+
+#Get the log2FC by subtracting the mean(log2()) / median(log2()) clusters
+for (i in 1:nrow(data.cluster)){
+  data.cluster[i,"log2FC_mean"] <- data.cluster[i,"cluster_1_mean"] - data.cluster[i,"cluster_2_mean"]
+  data.cluster[i,"log2FC_median"] <- data.cluster[i,"cluster_1_median"] - data.cluster[i,"cluster_2_median"]
+}
+
+#Print some feedback
+head(data.cluster)
+```
+#Combine the results
+Combine the p value and log2FC results into one df
+```{r initial_results}
+#Set the results, together with the previously found p values to a df
+data.results <- merge(data.cluster[,c("log2FC_mean", "log2FC_median")], cluster_1_vs_2[,c("p_value","adj_p_value")], by = "row.names")
+rownames(data.results) <- data.results$Row.names
+data.results$Row.names <- NULL
+```
+
+
+#Volcano plots
+The pvalues themselves are not great, the adjusted pvalues are not good at all. 
+At this point in the project I am running out of time and will simply disregard this issue so that I can have a full pipeline done in time. 
+```{r volcano_plots}
+#Labels aren't readable as they either intersect or they're to small to read so they are set to zero
+  #Not specifying a lab is not possible with this function
+#Subtitle explaining what the lines are with often chosen standard values
+
+if (RUN_PLOTS){
+  #Volcano plot on the median log2FC results with regular pvalues
+  EnhancedVolcano(data.results,
+      lab = rownames(data.results),
+      x = 'log2FC_median',
+      y = 'p_value',
+      title = 'Cluster 1 VS Cluster 2 - Median & pvalue',
+      subtitle = 'pvalue cutoff = 0.05\nlog2FC cutoff = 1',
+      pCutoff = 0.05,
+      FCcutoff = 1,
+      pointSize = 1.0,
+      labSize = 0)
+}
+if (RUN_PLOTS){
+  #Volcano plot on the mean log2FC results with regular pvalues
+  EnhancedVolcano(data.results,
+      lab = rownames(data.results),
+      x = 'log2FC_mean',
+      y = 'p_value',
+      title = 'Cluster 1 VS Cluster 2 - Mean & pvalue',
+      subtitle = 'pvalue cutoff = 0.05\nlog2FC cutoff = 1',
+      pCutoff = 0.05,
+      FCcutoff = 1,
+      pointSize = 1.0,
+      labSize = 0)
+}
+if (RUN_PLOTS){
+  #Volcano plot on the median log2FC results with adjusted pvalues
+  EnhancedVolcano(data.results,
+      lab = rownames(data.results),
+      x = 'log2FC_median',
+      y = 'adj_p_value',
+      title = 'Cluster 1 VS Cluster 2 - Median & FDR pvalue',
+      subtitle = 'Adjusted pvalue cutoff = 0.05\nlog2FC cutoff = 1',
+      pCutoff = 0.05,
+      FCcutoff = 1,
+      pointSize = 1.0,
+      labSize = 0)
+}
+if (RUN_PLOTS){
+  #Volcano plot on the mean log2FC results with adjusted pvalues
+  EnhancedVolcano(data.results,
+      lab = rownames(data.results),
+      x = 'log2FC_mean',
+      y = 'adj_p_value',
+      title = 'Cluster 1 VS Cluster 2 - Mean & FDR pvalue',
+      subtitle = 'Adjusted pvalue cutoff = 0.05\nlog2FC cutoff = 1',
+      pCutoff = 0.05,
+      FCcutoff = 1,
+      pointSize = 1.0,
+      labSize = 0)
+}
+```
+#Filter for the data to actually use
+```{r}
+#TAG: Make sure that the descriptions still line up with what is happening
+#If the fold change is below 0.58, I disregard that measure as the change is less than 1.5 times
+  #This allows me to reduce the amount of data I am dealing with 
+  #Using the median because as far as I am aware it is better with dealing with outliers
+data.selected <- data.results[abs(data.results[,"log2FC_median"]) > 1,]
+
+#Get quantiles of the adj_p_value
+  #I would like to take along at least 25% of the data so that I make sure I don't cut out too much
+  #type = 7 is the default, this default is makes use of linear interpolation. I did not change away from the default.
+cat("What the adjusted pvalues are at these probabilities:\n")
+quantile(data.selected[,"adj_p_value"],
+         type = 7,
+         probs = c(1, 5, 10, 15, 25, 50, 75, 100)/100)
+pvalue_cutoff <- quantile(data.selected[,"adj_p_value"],
+                           type = 7,
+                           probs = 25/100)
+cat("\nThe adjusted pvalue at 25%: ",pvalue_cutoff,"\n")
+
+data.selected <- data.selected[data.selected[,"adj_p_value"] <= pvalue_cutoff,]
+
+
+#print some feedback
+cat(nrow(data.selected), "genes made it through the selection.\n")
+
+#Convert to something that STRING can work with better
+selected_proteins <- gconvert(rownames(data.selected),organism="hsapiens",target="ENTREZGENE",filter_na = F)$target
+selected_proteins <- selected_proteins[!is.na(selected_proteins)]
+
+cat(length(selected_proteins),"protein names selected to use in the network.\n")
+
+
+```
+#Visualize selection
+Visualize the selection of genes by plotting the volcano plot again, but now with only the genes that made it through selection
+```{r volcano_plot_selection}
+#Use another volcano plot to show which genes made it through selection
+if (RUN_PLOTS){
+  #Volcano plot on the median log2FC selected with regular pvalues
+    #Labels aren't readable as they either intersect or they're to small to read
+  EnhancedVolcano(data.selected,
+      lab = rownames(data.selected),
+      x = 'log2FC_median',
+      y = 'p_value',
+      title = 'Cluster 1 VS Cluster 2 - Median & regular pvalue\nSelected genes',
+      subtitle = 'pvalue cutoff = 0.05\nlog2FC cutoff = 1',
+      pCutoff = 0.05,
+      FCcutoff = 1,
+      pointSize = 1.0,
+      labSize = 0)
+}
+```
+#PCA on only the EDS samples
+Display the PCA's that are used to build the background network with and then select the genes that are used to build the STRING background network.
+```{r PCA_on_disease}
+#Subset to only get the patient data
+data.disease_only <- data[,EDS_group]
+
+#Run a PCA on the patient only data
+PCA.disease_only <- pca(object = t(as.matrix(data.disease_only)), 
+                   method = "svd", nPcs = 10, center = TRUE)
+
+cat("The PC's that have 10% or more variance:\n")
+PCA.disease_only@R2[PCA.disease_only@R2 > 0.10]
+pca_variance_selection <- names(PCA.disease_only@R2[PCA.disease_only@R2 > 0.10])
+
+if (RUN_PLOTS){
+  #Visualize the PC's that have 10 or more % variance
+  for (PC in 1:length(pca_variance_selection)){
+    #PC1 and PC2 are not the clearest variable names to use here, not sure what else could work better though
+    PC1 <- pca_variance_selection[PC]
+    ifelse(PC != length(pca_variance_selection),
+           PC2 <- pca_variance_selection[PC+1],
+           PC2 <- pca_variance_selection[1])
+
+    Fun_plot_PCA_scores(PCA = PCA.disease_only, 
+                      metadata = metadata, 
+                      firstPC = PC1, 
+                      secondPC = PC2, 
+                      title = paste0("PCA scores (",PC1," vs ",PC2,") of just the patients"))
+
+  }
+} else {
+  cat("Plot not visualized due to RUN_PLOTS being set to FALSE.\n")
+}
+
+#Extract the top genes for the PC's that have 10% or more variance
+background_nodes <- NULL
+for (PC in 1:length(pca_variance_selection)){
+  #TAG: check that the description is still correct
+  #Get the 99% value and use it as the threshold
+    #Above this value should contain the top 1% of the data that is important for the loadings of this PC
+      #This value is chosen somewhat arbitrarily
+  threshold <- quantile(abs(PCA.disease_only@loadings[,pca_variance_selection[PC]]),
+                         type = 7,
+                         probs = 99/100,
+                         names = FALSE)
+
+  passed <- abs(PCA.disease_only@loadings[,pca_variance_selection[PC]]) >= threshold
+  
+  #Save the nodes that are in the top percent
+  background_nodes <- c(background_nodes, rownames(PCA.disease_only@loadings[passed,]))
+}
+#Use unique to remove duplicates
+background_nodes <- unique(background_nodes)
+
+cat("Selected", length(background_nodes),"genes to build the background network with.\n")
+
+
+#Convert to something that STRING can work with better
+background_proteins <- gconvert(background_nodes,organism="hsapiens",target="ENTREZGENE",filter_na = F)$target
+background_proteins <- background_proteins[!is.na(background_proteins)]
+
+cat(length(background_proteins),"protein names selected to build the background network with.\n")
+
+```
+
+#Cytoscape
+```{r ping_cytoscape}
+#Check that Cytoscape can be reached
+cytoscapePing()
+```
+
+#Build the Cytoscape background network
+```{r cytoscape_background_network}
+#Build the command to send to Cytoscape
+  #use a low cutoff (0.4)
+cmd <- paste0(
+  'string protein query ',
+  'query=', paste(background_proteins, collapse = ", "), ' ',
+#  'networkType=full STRING network ',
+  'networkType=physical subnetwork ',
+  'cutoff=0.4 ',
+  'newNetName="Background Network" ',
+  'species="Homo sapiens" ',
+  'limit=', round(length(background_proteins)*0.5),' ',
+  'showFlatNodeDesign=true ',
+  'showSTRINGstyleLabels=false ',
+  'showStructureImages=false'
+  )
+
+#Send the command to Cytoscape to build the network
+RCy3::commandsRun(cmd)
+
+#Get the network's SUID
+background_networkSuid = getNetworkSuid()
+
+
+```
+#Build the Cytoscape selected network
+```{r cytoscape_selected_network}
+#Build the command to send to Cytoscape
+  #Not many of the genes put into Cytoscape will actually result in a protein node being created
+  #use a low cutoff (0.4)
+cmd <- paste0(
+  'string protein query ',
+  'query=', paste(selected_proteins, collapse = ", "), ' ',
+#  'networkType=full STRING network ',
+  'networkType=physical subnetwork ',
+  'cutoff=0.4 ',
+  'newNetName=Selected Network ',
+  'species="Homo sapiens" ',
+  'limit=0 ',
+  'showFlatNodeDesign=true ',
+  'showSTRINGstyleLabels=false ',
+  'showStructureImages=false'
+  )
+
+#Send the command to Cytoscape to build the network
+RCy3::commandsRun(cmd)
+
+#Get the network's SUID
+selected_networkSuid = getNetworkSuid()
 
 ```
 
 
-
-
-#Experimenting
-Experimenting with the wilcox.test
 ```{r}
-#Get the patient identifiers
-healthy_group <- rownames(metadata)[grep("healthy", metadata[,"disease_state"])]
-EDS_group <- rownames(metadata)[grep("EDS-HT", metadata[,"disease_state"])]
-
-
-sum <- 0
-temp <- NULL
-for (i in 1:nrow(data)){
-  
-  
-  
-x <- (as.double(data[i,healthy_group]))
-y <- (as.double(data[i,EDS_group]))
-res <- wilcox.test(x, y, paired = FALSE, alternative = "two.sided")
-if(res$p.value < 0.05){
-  sum <- sum + 1
-  temp <- c(temp, i)}
-}
-print(sum)
-tempSTRING <- rownames(data[temp,])
+stop()
 
 #Toss that into Cytoscape just for curiousity
-
-
+tempSTRING <- rownames(data.selected)
+tempSTRING <- background_nodes
 #Check that Cytoscape can be reached
 cytoscapePing()
 
@@ -227,10 +525,10 @@ cmd <- paste0(
   'query="', tempSTRING, '" ',
   'networkType=full STRING network ',
 #  'networkType=physical subnetwork ',
-  'cutoff=0.7 ',
+  'cutoff=0.4 ',
   'newNetName=Base Network ',
   'species="Homo sapiens" ',
-  'limit=0 ',
+  'limit=100 ',
   'showFlatNodeDesign=true ',
   'showSTRINGstyleLabels=false ',
   'showStructureImages=false'
@@ -241,9 +539,6 @@ RCy3::commandsRun(cmd)
 
 #Get the network's SUID
 networkSuid = getNetworkSuid()
-
-
-
 ```
 
 
@@ -278,7 +573,7 @@ CHECK THAT THERE IS NO STRUCTURE IN THE RESIDUALS
 * Get a similarity network for the patients
 * Perform Wilcoxon rank-sum test on each feature using the median
   --> p-value
-  --> FC
+  --> log2FC
   * Correct using FDR
   
 

@@ -14,6 +14,16 @@ Download the Metadata of GSE270199_COL3A1_normalizedCounts.txt.gz from https://w
 
 *Unless specified otherwise, the code attempts to load in the default names of the files. If the names are changed in other ways then adjust the code in Load data.*
 
+
+I did not find how this data was pre-normalized, just that it was.
+With the lowest non-zero being 0.7581652 and the highest being 16.49163, the data is presumable log2 transformed already. 
+To prevent adding in processing artifacts if this assumption is wrong, I will keep the data log2 transformed as much as possible.
+
+Later down the process I located a metadata file on the Science Direct online upload of the data. (https://www.sciencedirect.com/science/article/pii/S0925443925002443)
+The patient identifiers in that file do not line up with the patient identifiers in the GSE270199_COL3A1_normalizedCounts.txt.gz file or the GSM83367** numbers, so I am unable to make use of it. Also there is no additional data on the control samples as far as I could find other than that they are two male and two female samples according to the text. 
+When I infer the sex of the participants I find five inferred as male and five inferred as female, the metadata in the "Table S2. Demographics and molecular features of the sample cohort."-supplementary file implies that there should be four male and six female samples. 
+As I cannot connect "Table S2" to the data, I am not able to correct for any of the data found in "Table S2".
+
 #Note:
 If there are sections with a "#TAG: [description]" then that means that that code has been tagged for needing changes made / to make things that might need to be changed easier to find. 
 
@@ -257,6 +267,24 @@ cat("\n-----\n")
 rm(keep, rename, column)
 
 ```
+#TAG: testing something, remove again 
+testing how the data changes if I assume it was log2 transformed 
+```{r}
+# Check summary stats
+#summary(GSE270199)
+
+# If you suspect log2(x + 1):
+#GSE270199 <- 2^GSE270199 - 1
+#head(GSE270199)
+
+
+#testing something else
+#GSE270199 <- GSE270199[rownames(GSE270199) != c("ENSG00000115414","ENSG00000108821"),]
+
+```
+
+
+
 #Detect Y chromosome markers to get male/female information for the metadata
 ```{r inferred_sex}
 #Only query the ensemble if the file to be loaded in doesn't exist or if the QUERY_ENSEMBL setting is set to TRUE
@@ -306,6 +334,7 @@ inferred_sex <- as.data.frame(inferred_sex)
 #Add the inferred_sex to the reduced metadata
 GSE270199.redmeta <- merge(GSE270199.redmeta, inferred_sex, by='row.names', all=TRUE)
 rownames(GSE270199.redmeta) <- GSE270199.redmeta$Row.names
+GSE270199.redmeta$Row.names <- NULL
 
 #Also get a combined disease and sex for the reduced metadata 
 disease_sex <- ifelse(GSE270199.redmeta$disease_state == "EDS-HT/JHS",
