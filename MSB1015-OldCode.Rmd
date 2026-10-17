@@ -508,3 +508,56 @@ colnames(scores_dataframe)
 
 rownames(scores_dataframe)[scores_dataframe["GSM8336713_GSM8336703"] >= 2]
 ```
+
+```{r}
+#Old version of the direction selection
+results$direction <- ifelse(up == down & up == 0,
+                            #Neither of them carry any heat
+                            "No heat",
+                            ifelse(up == 0 & down != 0,
+                                   #Only down carries heat
+                                   "Only Down",
+                                   ifelse(up != 0 & down == 0,
+                                          #Only up carries heat
+                                          "Only Up",
+                                          ifelse(up > down+0.01,
+                                                 #Up is larger
+                                                 "Up",
+                                                 ifelse(down > up+0.01,
+                                                        #Down is larger
+                                                        "Down",
+                                                        ifelse(up <= down+0.01 & down <= up+0.01,
+                                                               #Up and down are equal,
+                                                               "Equal",
+                                                               "Something went wrong"))))))
+
+
+
+# #TAG: Also make a comparison encoded as colors for easier passthrough mapping in Cytoscape
+# results$direction_colors <- ifelse(up == down & up == 0,
+#                             #Neither of them carry any heat
+#                             #"No heat",
+#                             "white",
+#                             ifelse(up == 0 & down != 0,
+#                                    #Only down carries heat
+#                                    #"Only Down",
+#                                    "darkblue",
+#                                    ifelse(up != 0 & down == 0,
+#                                           #Only up carries heat
+#                                           #"Only Up",
+#                                           "darkred",
+#                                           ifelse(up > down+0.01,
+#                                                  #Up is larger
+#                                                  #"Up",
+#                                                  "red",
+#                                                  ifelse(down > up+0.01,
+#                                                         #Down is larger
+#                                                         #"Down",
+#                                                         "blue",
+#                                                         ifelse(up <= down+0.01 & down <= up+0.01,
+#                                                                #Up and down are equal,
+#                                                                #"Equal",
+#                                                                "green",
+#                                                                "Something went wrong"))))))
+```
+

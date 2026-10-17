@@ -7,6 +7,33 @@ output: html_document
 #Loading the data
 Make sure that the previous file has been run and has saved the rds files (GSE270199_imputed.rds & GSE270199_redmeta.rds found in the OUTPUTS location)
 
+#The general pipeline in this file
+* Get a *similarity network* for the patients
+* *Cluster* the patients using the similarity network
+* Perform *Wilcoxon rank-sum test* on each feature
+  --> p-value
+  * Correct using *FDR*
+* Get *log2FC* of each cluster vs the other using the median to better deal with outliers
+  --> log2FC
+  * Two ways:
+      - *Compare the cluster to each other directly* 
+        --> Up- / Downregulated in one group over the other
+        --> Presumably gives less overlap as the nodes used for diffusion cannot overlap to begin with (either up- or downregulated)
+      - Compare the clusters to the controls and then to each other
+        --> Up- / Downregulated in reference to the controls, can then compare those to each other 
+        --> Presumably finds more shared areas as a node can be up- / downregulated in both of the comparisons before the diffusion comparison between the groups
+* Get a *selection of genes* to use for the network diffusion using filters
+  * Get protein codes to give to STRING instead of ENSG codes
+* Use *PCA* on only the EDS samples to build a *background network* that the selected nodes are diffused over
+  * Get protein codes to give to STRING instead of ENSG codes
+* *Diffuse* over the network and compare the clusters to each other
+  --> Unique nodes for one cluster?
+  --> Nodes that both clusters diffused to?
+    * *INTERPRET*:
+      --> Unique nodes could imply a different area of origin for some of the effects
+      --> Shared diffused-to nodes could show that despite originating from different nodes, the same area of the PPI may be affected
+
+
 #Clear the global environment
   Clear the environment to reduce the chance of issues on reruns
 ```{r clear_global}
@@ -179,6 +206,9 @@ clusters_k[healthy_group,] <- 0
 metadata <- merge(metadata, clusters_k, by = "row.names")
 rownames(metadata) <- metadata$Row.names
 metadata$Row.names <- NULL
+
+#Remove unneeded objects to clean the global environment
+rm(hc, sim_matrix, dist_matrix, sim_obj)
 ```
 
 
@@ -214,11 +244,23 @@ cluster_1_vs_2[i,"statistic"] <- res$statistic
 #Also add an adjusted p value using FDR
 cluster_1_vs_2[,"adj_p_value"] <- p.adjust(cluster_1_vs_2[,"p_value"], method = 'fdr', n = length(cluster_1_vs_2[,"p_value"]))
 
+
+#TAG: remove this test
+test <- data.frame(matrix(nrow = length(cluster_1_vs_2[,"p_value"]), ncol = 0))
+test$fdr <- p.adjust(cluster_1_vs_2[,"p_value"], method = 'fdr', n = length(cluster_1_vs_2[,"p_value"]))
+test$bonferroni <- p.adjust(cluster_1_vs_2[,"p_value"], method = 'bonferroni', n = length(cluster_1_vs_2[,"p_value"]))
+
+
+
 #Give some feedback
 cat(paste0(sum(cluster_1_vs_2[,"p_value"] < 0.05), 
            " (",
            round((sum(cluster_1_vs_2[,"p_value"] < 0.05)/nrow(cluster_1_vs_2))*100,2),
            "%) made it to a p-value of 0.05 or below between the two clusters."))
+
+
+#Remove unneeded objects to clean the global environment
+rm(res, cluster, i)
 
 ```
 #Get log2FC between the clusters
@@ -249,11 +291,14 @@ for (i in 1:nrow(data.cluster)){
 
 #Print some feedback
 head(data.cluster)
+
+#Remove unneeded objects to clean the global environment
+rm(i)
 ```
 #Combine the results
 Combine the p value and log2FC results into one df
 ```{r initial_results}
-#Set the results, together with the previously found p values to a df
+#Set the results, togetdher with the previously found p values to a df
 data.results <- merge(data.cluster[,c("log2FC_mean", "log2FC_median")], cluster_1_vs_2[,c("p_value","adj_p_value")], by = "row.names")
 rownames(data.results) <- data.results$Row.names
 data.results$Row.names <- NULL
@@ -275,7 +320,7 @@ if (RUN_PLOTS){
       x = 'log2FC_median',
       y = 'p_value',
       title = 'Cluster 1 VS Cluster 2 - Median & pvalue',
-      subtitle = 'pvalue cutoff = 0.05\nlog2FC cutoff = 1',
+      subtitle = 'pvalue line = 0.05\nlog2FC line = 1',
       pCutoff = 0.05,
       FCcutoff = 1,
       pointSize = 1.0,
@@ -288,7 +333,7 @@ if (RUN_PLOTS){
       x = 'log2FC_mean',
       y = 'p_value',
       title = 'Cluster 1 VS Cluster 2 - Mean & pvalue',
-      subtitle = 'pvalue cutoff = 0.05\nlog2FC cutoff = 1',
+      subtitle = 'pvalue line = 0.05\nlog2FC line = 1',
       pCutoff = 0.05,
       FCcutoff = 1,
       pointSize = 1.0,
@@ -301,7 +346,7 @@ if (RUN_PLOTS){
       x = 'log2FC_median',
       y = 'adj_p_value',
       title = 'Cluster 1 VS Cluster 2 - Median & FDR pvalue',
-      subtitle = 'Adjusted pvalue cutoff = 0.05\nlog2FC cutoff = 1',
+      subtitle = 'Adjusted pvalue line = 0.05\nlog2FC line = 1',
       pCutoff = 0.05,
       FCcutoff = 1,
       pointSize = 1.0,
@@ -314,7 +359,7 @@ if (RUN_PLOTS){
       x = 'log2FC_mean',
       y = 'adj_p_value',
       title = 'Cluster 1 VS Cluster 2 - Mean & FDR pvalue',
-      subtitle = 'Adjusted pvalue cutoff = 0.05\nlog2FC cutoff = 1',
+      subtitle = 'Adjusted pvalue line = 0.05\nlog2FC line = 1',
       pCutoff = 0.05,
       FCcutoff = 1,
       pointSize = 1.0,
@@ -324,8 +369,9 @@ if (RUN_PLOTS){
 #Filter for the data to actually use
 ```{r}
 #TAG: Make sure that the descriptions still line up with what is happening
-#If the fold change is below 0.58, I disregard that measure as the change is less than 1.5 times
+#If the fold change is below 1, I disregard that measure as the change is less than doubled or halved
   #This allows me to reduce the amount of data I am dealing with 
+  # (as úsing, for example, 0.58 creates a URI to long error when sending the command to Cytoscape)
   #Using the median because as far as I am aware it is better with dealing with outliers
 data.selected <- data.results[abs(data.results[,"log2FC_median"]) > 1,]
 
@@ -348,10 +394,28 @@ data.selected <- data.selected[data.selected[,"adj_p_value"] <= pvalue_cutoff,]
 cat(nrow(data.selected), "genes made it through the selection.\n")
 
 #Convert to something that STRING can work with better
-selected_proteins <- gconvert(rownames(data.selected),organism="hsapiens",target="ENTREZGENE",filter_na = F)$target
+selected_proteins <- gconvert(rownames(data.selected),
+                              organism="hsapiens",
+                              target="ENTREZGENE",
+                              filter_na = F)$target
 selected_proteins <- selected_proteins[!is.na(selected_proteins)]
 
+selected_proteins_up <- gconvert(rownames(data.selected[data.selected["log2FC_median"]>0,]),
+                                 organism="hsapiens",
+                                 target="ENTREZGENE",
+                                 filter_na = F)$target
+selected_proteins_up <- selected_proteins_up[!is.na(selected_proteins_up)]
+
+selected_proteins_down <- gconvert(rownames(data.selected[data.selected["log2FC_median"]<0,]),
+                                 organism="hsapiens",
+                                 target="ENTREZGENE",
+                                 filter_na = F)$target
+selected_proteins_down <- selected_proteins_down[!is.na(selected_proteins_down)]
+
+
 cat(length(selected_proteins),"protein names selected to use in the network.\n")
+cat(length(selected_proteins_up),"protein names are upregulated.\n")
+cat(length(selected_proteins_down),"protein names are downregulated.\n")
 
 
 ```
@@ -367,7 +431,7 @@ if (RUN_PLOTS){
       x = 'log2FC_median',
       y = 'p_value',
       title = 'Cluster 1 VS Cluster 2 - Median & regular pvalue\nSelected genes',
-      subtitle = 'pvalue cutoff = 0.05\nlog2FC cutoff = 1',
+      subtitle = 'pvalue line = 0.05\nlog2FC line = 1',
       pCutoff = 0.05,
       FCcutoff = 1,
       pointSize = 1.0,
@@ -445,34 +509,12 @@ cat(length(background_proteins),"protein names selected to build the background 
 cytoscapePing()
 ```
 
-#Build the Cytoscape background network
-```{r cytoscape_background_network}
-#Build the command to send to Cytoscape
-  #use a low cutoff (0.4)
-cmd <- paste0(
-  'string protein query ',
-  'query=', paste(background_proteins, collapse = ", "), ' ',
-#  'networkType=full STRING network ',
-  'networkType=physical subnetwork ',
-  'cutoff=0.4 ',
-  'newNetName="Background Network" ',
-  'species="Homo sapiens" ',
-  'limit=', round(length(background_proteins)*0.5),' ',
-  'showFlatNodeDesign=true ',
-  'showSTRINGstyleLabels=false ',
-  'showStructureImages=false'
-  )
-
-#Send the command to Cytoscape to build the network
-RCy3::commandsRun(cmd)
-
-#Get the network's SUID
-background_networkSuid = getNetworkSuid()
-
-
-```
 #Build the Cytoscape selected network
+This is to see if the nodes that were found connect in a decent way, even without allowing to addition of more nodes (limit=0).
 ```{r cytoscape_selected_network}
+#TAG: Turn this into a setting
+#For now skip this while testing
+if (FALSE){
 #Build the command to send to Cytoscape
   #Not many of the genes put into Cytoscape will actually result in a protein node being created
   #use a low cutoff (0.4)
@@ -495,40 +537,27 @@ RCy3::commandsRun(cmd)
 
 #Get the network's SUID
 selected_networkSuid = getNetworkSuid()
-
+}
 ```
 
-
-```{r}
-stop()
-
-#Toss that into Cytoscape just for curiousity
-tempSTRING <- rownames(data.selected)
-tempSTRING <- background_nodes
-#Check that Cytoscape can be reached
-cytoscapePing()
-
-#If this section of code is re-run then the code runs into issues, to prevent this, remove if there is a networkSuid in the environment already and reload it
-if (exists("networkSuid")){
-  cat("networkSuid was already made, removing it and remaking it to prevent issues with the code rerunning.\n")
-  RCy3::deleteNetwork(networkSuid)
-  rm(networkSuid)
-  cat("networkSuid has been deleted and will be remade.\n")
-} else if (!exists("networkSuid")){
-  cat("networkSuid does not exist in the environment, creating new network. \n")
-}
-
-
+#Build the Cytoscape background network
+```{r cytoscape_background_network}
+#TAG: Check
 #Build the command to send to Cytoscape
+  #use a low cutoff (0.4)
+  #Allow the network to expand by 50% of the queried proteins to get a more connected picture
 cmd <- paste0(
   'string protein query ',
-  'query="', tempSTRING, '" ',
-  'networkType=full STRING network ',
-#  'networkType=physical subnetwork ',
+  'query=', paste(background_proteins, collapse = ", "), ' ',
+#  'networkType=full STRING network ',
+  'networkType=physical subnetwork ',
   'cutoff=0.4 ',
-  'newNetName=Base Network ',
+  'newNetName="Background Network" ',
   'species="Homo sapiens" ',
-  'limit=100 ',
+#  'limit=', round(length(background_proteins)*0.5),' ',
+  'limit=', round(length(background_proteins)*0.1),' ',
+
+#  'limit=0 ',
   'showFlatNodeDesign=true ',
   'showSTRINGstyleLabels=false ',
   'showStructureImages=false'
@@ -538,16 +567,446 @@ cmd <- paste0(
 RCy3::commandsRun(cmd)
 
 #Get the network's SUID
-networkSuid = getNetworkSuid()
+background_networkSuid = getNetworkSuid()
+
+
+```
+
+#Diffusion
+Diffuse the proteins that were found in the selected set over the network created from the background set.
+```{r diffusion}
+#TAG: See if this can be turned into a function instead so it can handle more than just cluster 1 and 2
+#TAG: Refine and clean this
+
+#Get pre-allocated object to save the diffusion output that can be merged into
+  #display name and query term are loaded in so that the merge command can merge the dataframes using that as a reference
+diffusion_output <- getTableColumns(
+    table = "node",
+    columns = c("display name","query term"),
+    network = background_networkSuid
+)
+
+
+#Select up nodes in Cytoscape network
+selectNodes(
+    selected_proteins_up,
+    by.col = "display name",
+    preserve.current.selection = FALSE,
+    network = background_networkSuid
+)
+
+#Diffuse from the up nodes
+#TAG: get the diffusion time finalized
+RCy3::commandsRun('diffusion diffuse_advanced time=0.5')
+
+#Rename the diffusion output so that the results don't get mixed up
+renameTableColumn(
+    table = "node",
+    column = "diffusion_output_heat",
+    new.name = paste0("up", "_heat"),
+    network = background_networkSuid
+)
+renameTableColumn(
+    table = "node",
+    column = "diffusion_output_rank",
+    new.name = paste0("up", "_rank"),
+    network = background_networkSuid
+)
+renameTableColumn(
+    table = "node",
+    column = "diffusion_input",
+    new.name = paste0("up", "_diffusion_input"),
+    network = background_networkSuid
+)
+  
+#Get the diffusion results from Cytoscape
+temp_output <- getTableColumns(
+    table = "node",
+    columns = c("display name","query term", paste0("up", "_heat"), paste0("up", "_rank"), paste0("up", "_diffusion_input")),
+    network = background_networkSuid
+)
+
+#Round the output to both filter out extremely low heat and make downstream easier
+temp_output[paste0("up", "_heat")] <- round(temp_output[paste0("up", "_heat")], 2)
+
+#Remove the NA's from diffusion_input
+temp_output[is.na(temp_output[paste0("up", "_diffusion_input")]),paste0("up", "_diffusion_input")] <- 0
+
+#Merge the new result to the diffusion_output
+diffusion_output <- merge(diffusion_output, temp_output)
+
+
+#Select down nodes in Cytoscape network
+selectNodes(
+    selected_proteins_down,
+    by.col = "display name",
+    preserve.current.selection = FALSE,
+    network = background_networkSuid
+)
+
+#Diffuse from the down nodes
+#TAG: get the diffusion time finalized
+RCy3::commandsRun('diffusion diffuse_advanced time=0.5')
+
+#Rename the diffusion output so that the results don't get mixed up
+renameTableColumn(
+    table = "node",
+    column = "diffusion_output_heat",
+    new.name = paste0("down", "_heat"),
+    network = background_networkSuid
+)
+renameTableColumn(
+    table = "node",
+    column = "diffusion_output_rank",
+    new.name = paste0("down", "_rank"),
+    network = background_networkSuid
+)
+renameTableColumn(
+    table = "node",
+    column = "diffusion_input",
+    new.name = paste0("down", "_diffusion_input"),
+    network = background_networkSuid
+)
+  
+#Get the diffusion results from Cytoscape
+temp_output <- getTableColumns(
+    table = "node",
+    columns = c("display name","query term", paste0("down", "_heat"), paste0("down", "_rank"), paste0("down", "_diffusion_input")),
+    network = background_networkSuid
+)
+
+#Round the output to both filter out extremely low heat and make downstream easier
+temp_output[paste0("down", "_heat")] <- round(temp_output[paste0("down", "_heat")], 2)
+#Remove the NA's from diffusion_input
+temp_output[is.na(temp_output[paste0("down", "_diffusion_input")]),paste0("down", "_diffusion_input")] <- 0
+
+#Merge the new result to the diffusion_output
+diffusion_output <- merge(diffusion_output, temp_output)
+
+#Print some feedback
+head(diffusion_output)
+```
+#Diffusion processing
+Process the information that came out of the diffusion and send that info back to Cytoscape for visualization options.
+```{r diffusion_processing}
+#Get up and down out for ease
+up <- diffusion_output$up_heat
+down <- diffusion_output$down_heat
+
+#Get the overlap and difference between the two diffusions
+results <- as.data.frame(matrix(nrow = length(up), ncol = 0))
+rownames(results) <- diffusion_output$"display name"
+results$difference <- up - down
+results$abs_difference <- abs(results$difference)
+#results$neg_abs_difference <- 0-results$abs_difference
+results$input <- diffusion_output$up_diffusion_input + diffusion_output$down_diffusion_input
+
+#Make a comparison and use an offset so that nodes that are very similar are also considered equal
+results$direction <- ifelse(up <= 0.01 & down <= 0.01,
+                            #Neither of them carry enough heat to be considered
+                            "No heat",
+                             ifelse(round(abs(up - down),5) <= 0.01,
+                                    #Up and down are considered equal,
+                                    "Equal",
+                                    ifelse(up <= 0.01 & down > 0.01,
+                                           #Only down carries heat
+                                           "Only Down",
+                                           ifelse(up > 0.01 & down <= 0.01,
+                                                  #Only up carries heat
+                                                  "Only Up",
+                                                  ifelse(up > down,
+                                                         #Up is larger
+                                                         "Up",
+                                                         ifelse(down > up,
+                                                                #Down is larger
+                                                                "Down",
+                                                                "Something went wrong"))))))
+#For testing purposes:
+# head(results[results$direction == "No heat",])
+# head(results[results$direction == "Equal",])
+# head(results[results$direction == "Up",])
+# head(results[results$direction == "Only Up",])
+# head(results[results$direction == "Down",])
+# head(results[results$direction == "Only Down",])
+# head(results[results$direction == "Something went wrong",])
+
+
+
+```
+#TAG: temp split
+```{r}
+#Get some feedback
+cat(paste0(sum(results["direction"]=="No heat"), 
+    " nodes (",
+    round((sum(results["direction"]=="No heat")/nrow(results["direction"]))*100, 2),
+    "%) carry no heat in both the comparisons.\n"))
+
+cat(paste0(sum(results["direction"]=="Equal"), 
+    " nodes (",
+    round((sum(results["direction"]=="Equal")/nrow(results["direction"]))*100, 2),
+    "%) are equal between the comparisons.\n"))
+
+cat(paste0(sum(results["direction"]=="Up"), 
+    " nodes (",
+    round((sum(results["direction"]=="Up")/nrow(results["direction"]))*100, 2),
+    "%) carry more heat in the up diffusion.\n"))
+
+cat(paste0(sum(results["direction"]=="Only Up"), 
+    " nodes (",
+    round((sum(results["direction"]=="Only Up")/nrow(results["direction"]))*100, 2),
+    "%) only have heat in the up diffusion.\n"))
+
+cat(paste0(sum(results["direction"]=="Down"), 
+    " nodes (",
+    round((sum(results["direction"]=="Down")/nrow(results["direction"]))*100, 2),
+    "%) nodes carry more heat in the down diffusion.\n"))
+
+cat(paste0(sum(results["direction"]=="Only Down"), 
+    " nodes (",
+    round((sum(results["direction"]=="Only Down")/nrow(results["direction"]))*100, 2),
+    "%) only have heat in the down diffusion.\n"))
+
+
+#Send the info back to Cytoscape for visualization
+loadTableData(
+    results,
+    data.key.column = "row.names",
+    table.key.column = "display name",
+    network = background_networkSuid
+)
+```
+#Remove non-selected for singletons
+#TAG: WIP
+```{r}
+# Get the node table from Cytoscape
+nodes <- getTableColumns(
+  table = "node",
+  columns = c("SUID", "name", "input")
+)
+
+# Get the edge table from Cytoscape
+edges <- getTableColumns(
+  table = "edge",
+  columns = c("name")
+)
+#Extract source and target
+edges$source <- substr(edges$name, start = 1, stop = 20)
+edges$target <- substr(edges$name, start = 28, stop = 48)
+
+# Identify nodes that have at least one edge
+connected_nodes <- unique(c(edges$source, edges$target))
+
+# Identify singleton nodes that should be removed
+nodes_to_remove <- nodes %>%
+  filter(
+    !name %in% connected_nodes,
+    input == 0
+  )
+
+#Select the to-be-deleted nodes
+selectNodes(
+    nodes_to_remove$name,
+    by.col = "name",
+    preserve.current.selection = FALSE,
+    network = background_networkSuid
+)
+
+RCy3::deleteSelectedNodes()
+```
+
+#Visuals
+Add in some visuals for the Cytoscape network
+```{r cytoscape_visuals}
+#TAG: Make sure that the order of operations makes sense
+
+#Set the size of the nodes based on if they were an input node
+RCy3::setNodeWidthMapping(table.column = 'input',
+                           table.column.values = c(0,1),
+                           widths = c(60,120),
+                           network = background_networkSuid)
+RCy3::setNodeHeightMapping(table.column = 'input',
+                           table.column.values = c(0,1),
+                           heights = c(60,120),
+                           network = background_networkSuid)
+
+#Set the shape of the nodes based on if they were an input node
+RCy3::setNodeShapeMapping(table.column = 'input',
+                          table.column.values = c(0,1),
+                          shapes = c("ELLIPSE","DIAMOND"),
+                          network = background_networkSuid)
+
+#Make sure that the nodes have their display names
+RCy3::setNodeLabelMapping(table.column='display name',
+                          network = background_networkSuid)
+
+#Set the label of the nodes above the nodes
+RCy3::setNodeLabelPositionDefault(new.nodeAnchor = "N",
+                                  new.graphicAnchor = "S",
+                                  new.justification = "c",
+                                  new.xOffset = 0,
+                                  new.yOffset = 0)
+
+#Set the layout of the network to a force-directed one based on cooccurrence
+  #This means that nodes that cooccur should be closer together
+layoutNetwork(paste0('force-directed ',
+              'defaultEdgeWeight=50 ',
+              'defaultNodeMass=5 ',
+              'defaultSpringCoefficient=0.00001 ',
+              'defaultSpringLength=5 ',
+              'edgeAttribute=stringdb::cooccurrence ',
+              'numIterations=255 ',
+              'singlePartition=false'),
+              network = background_networkSuid)
+
+#TAG: Turn this into a function or a loop that saves png's of each
+# #TAG: Get better colors
+#Heat of the up nodes
+# setNodeColorMapping('up_heat',
+#                     mapping.type = 'c',
+#                     table.column.values = c(0, 0.5, 1),
+#                     c('#EEEEEE', 'red', 'darkred'))
+# 
+# #Set the fontsize of nodes that don't carry heat in diffusion 1 to zero and the ones that do to 30
+# RCy3::setNodeFontSizeMapping('up_heat', 
+#                     mapping.type = 'c',
+#                     table.column.values = c(0,0.02,0.021,1), 
+#                                           c(0,0,30,30))
+# 
+# #Heat of the down nodes
+# setNodeColorMapping('down_heat',
+#                     mapping.type = 'c',
+#                     table.column.values = c(0, 0.5, 1),
+#                     c('#EEEEEE', 'blue', 'darkblue'))
+# 
+# #Set the fontsize of nodes that don't carry heat in diffusion 1 to zero and the ones that do to 30
+# RCy3::setNodeFontSizeMapping('down_heat',
+#                     mapping.type = 'c',
+#                     table.column.values = c(0,0.02,0.021,1),
+#                                           c(0,0,30,30))
+# 
+# #Heat comparison, all
+# setNodeColorMapping('direction', 
+#                     mapping.type = 'd',
+#                     #Odd indentation intentional to make clearer what is mapped to what
+#                     table.column.values = c("No heat", "Equal",   "Up",      "Only Up", "Down",    "Only Down"), 
+#                                          c('#EEEEEE', '#FF007D', '#FFB000', 'darkred', '#648FFF', 'darkblue'))
+# 
+# #Heat comparison, both only
+# setNodeColorMapping('direction', 
+#                     mapping.type = 'd',
+#                     #Odd indentation intentional to make clearer what is mapped to what
+#                     table.column.values = c("No heat", "Equal",   "Up",      "Only Up", "Down",    "Only Down"), 
+#                                          c('#EEEEEE', '#FF007D', '#FFB000', '#EEEEEE', '#648FFF', '#EEEEEE'))
+
+#Set a border width so that borders visualize
+RCy3::setNodeBorderWidthDefault(30)
+
+#Heat comparison, uniques only
+setNodeColorMapping('direction', 
+                    mapping.type = 'd',
+                    #Odd indentation intentional to make clearer what is mapped to what
+                    table.column.values = c("No heat", "Equal",   "Up",     "Only Up", "Down",    "Only Down"), 
+                                          c('#EEEEEE', '#FFB000', '#FFB000','#EEEEEE', '#FFB000', '#EEEEEE'))
+
+RCy3::setNodeBorderColorMapping('direction', 
+                    mapping.type = 'd',
+                    #Odd indentation intentional to make clearer what is mapped to what
+                    table.column.values = c("No heat", "Equal",   "Up",      "Only Up", "Down",    "Only Down"), 
+                                         c('#CCCCCC', '#8F6200', 'darkred', '#CCCCCC', 'darkblue', '#CCCCCC'))
+
+#Set the fontsize of nodes that carry no heat at all to zero, the equal ones to 50 and the remainder to 30
+RCy3::setNodeFontSizeMapping('direction', 
+                    mapping.type = 'd',
+                    #Odd indentation intentional to make clearer what is mapped to what
+                    table.column.values = c("No heat", "Equal", "Up", "Only Up", "Down", "Only Down"), 
+                                          c( 0,         50,      30,   0,         30,     0))
+```
+#Process the results further into another visualization
+```{r}
+
+stop()
+
+#Select the nodes that had heat diffuse to them in both diffusions 
+both_nodes <- rownames(results[(results$direction == "Equal" |
+               results$direction == "Up"    |
+               results$direction == "Down"),])
+
+selectNodes(
+    both_nodes,
+    by.col = "display name",
+    preserve.current.selection = FALSE,
+    network = background_networkSuid
+)
+
+
+
+
+
+library(httr)
+library(jsonlite)
+
+#Get url
+url <- "https://string-db.org/api/json/enrichment"
+
+#Get response from the string-db instead of going through Cytoscape
+response <- POST(
+  url,
+  body = list(
+    identifiers = paste(both_nodes, collapse = "\r"),
+    species = 9606,
+    merge_similarity = 0.5
+  ),
+  encode = "form"
+)
+
+#Get the results
+results <- fromJSON(content(response, "text"))
+
+#Filter for Process only (GO Biological Process)
+results <- results[results$category == "Process",]
+
+#Remove the category as everything is process now 
+  #I want to use the results from this in MSB1015's project report, and repeating unneccesary information is not optimal
+results$category <- NULL
+
+#Remove the ncbiTaxonId as everything is human anyway
+results$ncbiTaxonId <- NULL
+
+#Remove the preferredNames as the inputGenes displays the same information anyway
+results$preferredNames <- NULL
+
+
+#Give some feedback
+#How many descriptions talk about regulation?
+cat(length(grep("regulation", results$description, ignore.case = TRUE)),
+    "descriptions mention regulation.\n")
+#How many descriptions talk about proliferation?
+cat(length(grep("proliferation", results$description, ignore.case = TRUE)),
+    "descriptions mention proliferation.\n")
+#How many descriptions talk about differentiation?
+cat(length(grep("differentiation", results$description, ignore.case = TRUE)),
+    "descriptions mention differentiation.\n")
+#How many descriptions talk about development?
+cat(length(grep("development", results$description, ignore.case = TRUE)),
+    "descriptions mention development.\n")
+#How many descriptions talk about signaling?
+cat(length(grep("signaling", results$description, ignore.case = TRUE)),
+    "descriptions mention signalling.\n")
+#How many descriptions talk about response?
+cat(length(grep("response", results$description, ignore.case = TRUE)),
+    "descriptions mention response.\n")
+
+
+
+
+
+ 
+
 ```
 
 
 
-
-
-
-
-
+#TAG: Remove or move the advice to the OldCode file instead of in here
 #Advice from Martina:
 (to make it so that I can use this project for MSB1014 as well)
 * Remove controls and only compare the patients
@@ -556,7 +1015,7 @@ networkSuid = getNetworkSuid()
   * Correlate the patients into 2 or 3 clusters to find patient groups
   
 #Advice from Agi:
-For two independent groups you should use the Mann–Whitney U test (Wilcoxon rank-sum test) can be applied to each feature. In addition to the p-value, report the fold change (FC) to describe the magnitude and direction of the difference. Since you have outliers use median instead of mean.  Because many features are tested please correct the  p-values for multiple testing using the Benjamini–Hochberg FDR procedure.
+For two independent groups you should use the Mann–Whitney U test (Wilcoxon rank-sum test) can be applied to each feature. In addition to the p-value, report the fold change (FC) to describe the magnitude and direction of the difference. Since you have outliers use median instead of mean.  Because many features are tested please correct the p-values for multiple testing using the Benjamini–Hochberg FDR procedure.
 
 #Advice from Agi:
 (data[feature, group])
@@ -569,14 +1028,8 @@ imput data --> use PCA as dimentionallity reduction --> use the scores for simil
 PCA still contains the features but only contains (ex. 90%) get clusters, go back to real data and color code the cluster to what was found in the reduction on the real data
 CHECK THAT THERE IS NO STRUCTURE IN THE RESIDUALS
 
-#Plan:
-* Get a similarity network for the patients
-* Perform Wilcoxon rank-sum test on each feature using the median
-  --> p-value
-  --> log2FC
-  * Correct using FDR
-  
-
+#Other advice:
+Add in somewhere: overrepresentation analysis
 
 
 

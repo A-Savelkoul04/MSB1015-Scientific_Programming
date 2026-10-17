@@ -6,7 +6,13 @@
 ##########  bloating the main file                ##########
 ##########                                        ##########
 ############################################################
-#This file has various checks in it that make the main script look bloated while just adding some feedback, so they have been placed in this seperate R script.
+#This file has various checks in it that make the main script 
+# look bloated while just adding some feedback, so they have 
+# been placed in this seperate R script.
+
+#TAG: If time allows split this into two files to have the
+# global environment cleaner per file instead of loading all
+# the checks even when they are not needed.
 
 #####################
 ### Does the in/  ###

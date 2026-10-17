@@ -349,6 +349,22 @@ disease_sex <- ifelse(GSE270199.redmeta$disease_state == "EDS-HT/JHS",
 GSE270199.redmeta["disease_sex"] <- disease_sex
 
 ```
+```{r verify_sex_imputation}
+#Get y_counts for in the histogram 
+y_counts <- as.data.frame(colSums(GSE270199[y_genes, ]))
+colnames(y_counts) <- "y_gene_counts"
+y_counts$inferred_sex <- inferred_sex$inferred_sex
+
+#Visualize a histogram
+ggplot(y_counts,aes(x=y_gene_counts, fill = inferred_sex)) +
+  geom_histogram(binwidth = 15) + 
+  labs(title = "Clear division on who is inferred as what sex",
+       x = "Summed y chromosome gene counts",
+       y = "Amount of samples")
+
+#Remove y_counts again as it is not used anywhere and just clogs up the global environment
+rm(y_counts)
+```
 
 
 #TAG: REMOVE THIS, THIS WAS A TEST ON HOW THE DATA RESPONDED TO GSM8336700 BEING REMOVED

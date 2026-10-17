@@ -5,6 +5,14 @@
 ##########                                        ##########
 ############################################################
 
+#TAG: Update the plotting functions to have them return the plot 
+# instead of printing it. This way I can expand the code in the 
+# main script to save the images in the OUTPUTS instead of just 
+# printing them in the Rmd.
+
+#TAG: Update the PCA / Biplots with an additional variable so
+# that the colors can be set differently
+
 #####################
 ### NA values     ###
 #####################
@@ -362,16 +370,16 @@ Fun_heatmap <- function(data_matrix = t(data),
     color_cluster <- ifelse(clusters_k[rownames(sim_matrix)] == 1,
                             "palegreen",
                             ifelse(clusters_k[rownames(sim_matrix)] == 2,
-                                   "green",
+                                   "darkgreen",
                                    ifelse(clusters_k[rownames(sim_matrix)] == 3,
-                                          "darkgreen",
+                                          "green",
                                           ifelse(clusters_k[rownames(sim_matrix)] == 4,
                                                  "black",
                                                  "white"))))
     
     #As the amount of clusters can change, so should the amount of colors that get put in the label
       #The reppitition of white means that the clusters will always have enough labels available, even when there is no unique color for it
-    cluster_colors <- c("palegreen", "green", "darkgreen", "black", rep("white",clusters))
+    cluster_colors <- c("palegreen", "darkgreen", "green", "black", rep("white",clusters))
 
     #Note the data in the legend
     legend_labels <- c(legend_labels, paste0("Cluster ", 1:clusters))

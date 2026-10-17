@@ -6,6 +6,12 @@
 ##########                                        ##########
 ############################################################
 
+#To reduce bloat in the setup section of the two files the library installations
+# and loading are done using two functions loaded in using this file.
+#This also means that all the libraries are found in a single location. Especially
+# in the Fun_load_libraries function it is easily seen what libraries are loaded 
+# into the environment.
+
 #####################
 ### Download      ###
 #####################
@@ -13,28 +19,28 @@
 Fun_install_libraries <- function(){
   cat("Attempting to check for and download the various libraries.\n")
   
-  if (!require("rmarkdown", quietly = TRUE))
-    install.packages("rmarkdown")
-  if (!require("BiocManager", quietly = TRUE))
-    install.packages("BiocManager")
-  if (!require("dplyr", quietly = TRUE))
-    install.packages("dplyr")
-  if (!require("affy", quietly = TRUE))
-    BiocManager::install("affy")
-  if (!require("oligo", quietly = TRUE))
-    BiocManager::install("oligo")
-  if (!require("ggplot2", quietly = TRUE))
-    install.packages("ggplot2")
-  if (!require("ggtext", quietly = TRUE))
-    install.packages("ggtext")
-  if (!require("naniar", quietly = TRUE))
-    install.packages("naniar")
-  if (!require("pcaMethods", quietly = TRUE))
-    BiocManager::install("pcaMethods")
-  if (!require("dplyr", quietly = TRUE))
-    BiocManager::install("dplyr")  
-  if (!require("tibble", quietly = TRUE))
-    BiocManager::install("tibble")  
+  if (!require("rmarkdown", quietly = TRUE)){
+    install.packages("rmarkdown")}
+  if (!require("BiocManager", quietly = TRUE)){
+    install.packages("BiocManager")}
+  if (!require("dplyr", quietly = TRUE)){
+    install.packages("dplyr")}
+  if (!require("affy", quietly = TRUE)){
+    BiocManager::install("affy")}
+  if (!require("oligo", quietly = TRUE)){
+    BiocManager::install("oligo")}
+  if (!require("ggplot2", quietly = TRUE)){
+    install.packages("ggplot2")}
+  if (!require("ggtext", quietly = TRUE)){
+    install.packages("ggtext")}
+  if (!require("naniar", quietly = TRUE)){
+    install.packages("naniar")}
+  if (!require("pcaMethods", quietly = TRUE)){
+    BiocManager::install("pcaMethods")}
+  if (!require("dplyr", quietly = TRUE)){
+    BiocManager::install("dplyr")  }
+  if (!require("tibble", quietly = TRUE)){
+    BiocManager::install("tibble")  }
   if (!requireNamespace("RCy3", quietly = TRUE)) {
     BiocManager::install("RCy3")}
   if (!requireNamespace("biomaRt", quietly = TRUE)) {
@@ -43,12 +49,12 @@ Fun_install_libraries <- function(){
     BiocManager::install("org.Hs.eg.db")}
   if (!requireNamespace("AnnotationDbi", quietly = TRUE)) {
     BiocManager::install("AnnotationDbi")}
-  if (!require("proxy", quietly = TRUE))
-    install.packages("proxy")
+  if (!require("proxy", quietly = TRUE)){
+    install.packages("proxy")}
   if (!requireNamespace("EnhancedVolcano", quietly = TRUE)) {
     BiocManager::install("EnhancedVolcano")}
-  if (!require("rmarkdown", quietly = TRUE))
-    install.packages("gprofiler2")
+  if (!require("rmarkdown", quietly = TRUE)){
+    install.packages("gprofiler2")}
   
   if (!requireNamespace("randomForest", quietly = TRUE)) {
     BiocManager::install("randomForest")}
@@ -83,7 +89,9 @@ Fun_load_libraries <- function(){
   library(proxy)
   library(EnhancedVolcano)
   library(gprofiler2)
-
+  
+  #Libraries that were used in testing different methods 
+  # but were not used in the final version:
   #library(pcadapt)
   #library(hugene10stv1cdf)
   
