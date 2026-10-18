@@ -585,3 +585,68 @@ results$direction <- ifelse(up == down & up == 0,
 #                                                                "Something went wrong"))))))
 ```
 
+
+
+#GEOD77758 data checks
+(dataset remained unused)
+```{r}
+#####################
+### Can the data  ###
+### be found      ###
+#####################
+#TAG: Modify this check if time allows so it can be reused for the other data if it gets used.
+Fun_GEOD77758_findability_check <- function(){
+  if (length(cels.HuGene) == 11) {
+    cat("The expected amount of files were found for HuGenes (11 files found).\n")
+  } else if (length(cels.HuGene) < 11){
+    warning(paste0("Less than the expected amount of files were found for HuGenes (", length(cels.HuGene)," files found).\n"))
+  } else {
+    warning("Something unknown went wrong\n")
+  }
+  
+  if (length(cels.miRNA) == 11) {
+    cat("The expected amount of files were found for miRNA (11 files found).\n")
+  } else if (length(cels.miRNA) < 11){
+    warning(paste0("Less than the expected amount of files were found for miRNA (", length(cels.miRNA)," files found).\n"))
+  } else {
+    warning("Something unknown went wrong\n")
+  }
+}
+
+#####################
+### Can metadata  ###
+### be found      ###
+#####################
+#TAG: Modify this check if time allows so it can be reused for the other data if it gets used.
+Fun_GEOD77758_meta_check <- function(){
+  #Check that the people in GEOD77758 are also in GEOD77758.meta
+  if (sum(colnames(GEOD77758.HuGene) %in% rownames(GEOD77758.HuGene.meta)) == ncol(GEOD77758.HuGene)){
+    cat("All the colnames of GEOD77758.HuGene are in the rownames of GEOD77758.HuGene.meta \n")
+  } else if (!sum(colnames(GEOD77758.HuGene) %in% rownames(GEOD77758.HuGene.meta)) == ncol(GEOD77758.HuGene)){
+    waning("The the colnames of GEOD77758.HuGene are NOT in the rownames of GEOD77758.HuGene.meta \n ")
+  } else {
+    warning("Something unknown went wrong\n")
+  }
+  
+  #Check that the people in GEOD77758 are also in GEOD77758.meta
+  if (sum(colnames(GEOD77758.miRNA) %in% rownames(GEOD77758.miRNA.meta)) == ncol(GEOD77758.miRNA)){
+    cat("All the colnames of GEOD77758.miRNA are in the rownames of GEOD77758.miRNA.meta \n")
+  } else if (!sum(colnames(GEOD77758.miRNA) %in% rownames(GEOD77758.miRNA.meta)) == ncol(GEOD77758.miRNA)){
+    warning("The the colnames of GEOD77758.miRNA are NOT in the rownames of GEOD77758.miRNA.meta \n ")
+  } else {
+    warning("Something unknown went wrong\n")
+  }
+}
+```
+
+#Session information
+Save the original session information
+```{r}
+session_information <- sessionInfo()
+
+writeLines(capture.output(sessionInfo()), "sessionInfo.txt")
+
+```
+
+
+

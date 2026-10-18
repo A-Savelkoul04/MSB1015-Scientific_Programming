@@ -5,14 +5,6 @@
 ##########                                        ##########
 ############################################################
 
-#TAG: Update the plotting functions to have them return the plot 
-# instead of printing it. This way I can expand the code in the 
-# main script to save the images in the OUTPUTS instead of just 
-# printing them in the Rmd.
-
-#TAG: Update the PCA / Biplots with an additional variable so
-# that the colors can be set differently
-
 #####################
 ### NA values     ###
 #####################

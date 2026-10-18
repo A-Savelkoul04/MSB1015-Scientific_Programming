@@ -13,6 +13,7 @@
 #TAG: If time allows split this into two files to have the
 # global environment cleaner per file instead of loading all
 # the checks even when they are not needed.
+#NOTE: Did not have time
 
 #####################
 ### Does the in/  ###
@@ -96,7 +97,8 @@ Fun_settings_check1 <- function(){
     stop()
   }
   #zeros_for_imputation_EDS needs to be a number and be between (inclusive) 0 and 10.
-  #TAG: Update this check and the code that handles this to a percentage instead if time allows.
+  #TAG: Update this check and the code that handles this to a percentage instead (allows it to act more dynamic) if time allows.
+  #NOTE: Did not have time
   if (is.numeric(zeros_for_imputation_EDS) & 0 <= zeros_for_imputation_EDS & zeros_for_imputation_EDS <= 10){
     cat("zeros_for_imputation_EDS has a valid value.\n")
   } else {
@@ -104,7 +106,8 @@ Fun_settings_check1 <- function(){
     stop()
   }  
   #zeros_for_imputation_healthy needs to be a number and be between (inclusive) 0 and 4.
-  #TAG: Update this check and the code that handles this to a percentage instead if time allows.
+  #TAG: Update this check and the code that handles this to a percentage instead (allows it to act more dynamic) if time allows.
+  #NOTE: Did not have time
   if (is.numeric(zeros_for_imputation_healthy) & 0 <= zeros_for_imputation_healthy & zeros_for_imputation_healthy <= 4){
     cat("zeros_for_imputation_healthy has a valid value.\n")
   } else {
@@ -179,7 +182,6 @@ Fun_settings_check2 <- function(){
 ### Can the data  ###
 ### be found      ###
 #####################
-#TAG: Modify this check if time allows so it can be reused for the other data if it gets used.
 Fun_GSE270199_findability_check <- function(){
   #Check that the required inputs can be found, otherwise stop the code from running
   if (!file.exists(paste0(INPUT_FILE_LOCATION,"/GSE270199_COL3A1_normalizedCounts.txt"))){
@@ -207,60 +209,11 @@ Fun_GSE270199_findability_check <- function(){
 ### Can metadata  ###
 ### be found      ###
 #####################
-#TAG: Modify this check if time allows so it can be reused for the other data if it gets used.
 Fun_GSE270199_meta_check <- function(){
   if (sum(colnames(GSE270199) %in% rownames(GSE270199.meta)) == ncol(GSE270199)){
     cat("All the colnames of GSE270199 are in the rownames of GSE270199.meta. \n")
   } else if (!sum(colnames(GSE270199) %in% rownames(GSE270199.meta)) == ncol(GSE270199)){
     waning("The the colnames of GSE270199 are NOT in the rownames of GSE270199.meta. \n ")
-  } else {
-    warning("Something unknown went wrong\n")
-  }
-}
-
-#####################
-### Can the data  ###
-### be found      ###
-#####################
-#TAG: Modify this check if time allows so it can be reused for the other data if it gets used.
-Fun_GEOD77758_findability_check <- function(){
-  if (length(cels.HuGene) == 11) {
-    cat("The expected amount of files were found for HuGenes (11 files found).\n")
-  } else if (length(cels.HuGene) < 11){
-    warning(paste0("Less than the expected amount of files were found for HuGenes (", length(cels.HuGene)," files found).\n"))
-  } else {
-    warning("Something unknown went wrong\n")
-  }
-  
-  if (length(cels.miRNA) == 11) {
-    cat("The expected amount of files were found for miRNA (11 files found).\n")
-  } else if (length(cels.miRNA) < 11){
-    warning(paste0("Less than the expected amount of files were found for miRNA (", length(cels.miRNA)," files found).\n"))
-  } else {
-    warning("Something unknown went wrong\n")
-  }
-}
-
-#####################
-### Can metadata  ###
-### be found      ###
-#####################
-#TAG: Modify this check if time allows so it can be reused for the other data if it gets used.
-Fun_GEOD77758_meta_check <- function(){
-  #Check that the people in GEOD77758 are also in GEOD77758.meta
-  if (sum(colnames(GEOD77758.HuGene) %in% rownames(GEOD77758.HuGene.meta)) == ncol(GEOD77758.HuGene)){
-    cat("All the colnames of GEOD77758.HuGene are in the rownames of GEOD77758.HuGene.meta \n")
-  } else if (!sum(colnames(GEOD77758.HuGene) %in% rownames(GEOD77758.HuGene.meta)) == ncol(GEOD77758.HuGene)){
-    waning("The the colnames of GEOD77758.HuGene are NOT in the rownames of GEOD77758.HuGene.meta \n ")
-  } else {
-    warning("Something unknown went wrong\n")
-  }
-  
-  #Check that the people in GEOD77758 are also in GEOD77758.meta
-  if (sum(colnames(GEOD77758.miRNA) %in% rownames(GEOD77758.miRNA.meta)) == ncol(GEOD77758.miRNA)){
-    cat("All the colnames of GEOD77758.miRNA are in the rownames of GEOD77758.miRNA.meta \n")
-  } else if (!sum(colnames(GEOD77758.miRNA) %in% rownames(GEOD77758.miRNA.meta)) == ncol(GEOD77758.miRNA)){
-    warning("The the colnames of GEOD77758.miRNA are NOT in the rownames of GEOD77758.miRNA.meta \n ")
   } else {
     warning("Something unknown went wrong\n")
   }

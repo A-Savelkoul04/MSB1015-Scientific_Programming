@@ -1,6 +1,13 @@
 # MSB1015-Scientific_Programming
 Repository containing code written for the Scientific Programming course. 
 
+# Software requirements
+Code developed on Windows 11 using the software:
+  R programming (version: 4.6.1)
+  RStudio (version: 2026.08.2+200)
+  Cytoscape (version: 3.10.3)
+  stringApp extension to Cytoscape (version: 2.2.0)
+
 # Files to run in order: 
 MSB1015-GSE270199_LoadingAndCleaning.Rmd
 MSB1015-GSE270199_Processing.Rmd
@@ -59,7 +66,14 @@ Download the Metadata of GSE270199_COL3A1_normalizedCounts.txt.gz from https://w
       --> Unique nodes (only up or only down) could imply a different area of origin for some of the effects
       --> Shared diffused-to nodes could show that despite originating from different nodes, the same area of the PPI may be affected
 
-# System 
+# System the code was developed on
 The system that the code was developed on was Windows 11 Pro version 25H2 
 The R version used was 4.6.1
 The RStudio version used was 2026.08.2+200
+The Cytoscape version used was:
+  Version: 3.10.3 
+  Java: 17.0.5 by Eclipse Adoptium 
+  OS: Windows 11 10.0 - amd64
+The stringApp extension version used was v2.2.0
+
+For R's sessionInfo information, please see the DevelopedOnSessionInfo.txt file available on the GitHub. 

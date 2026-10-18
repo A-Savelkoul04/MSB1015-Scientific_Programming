@@ -60,12 +60,6 @@ Fun_install_libraries <- function(){
   if (!require("jsonlite", quietly = TRUE)){
     install.packages("jsonlite")}
   
-
-  if (!requireNamespace("randomForest", quietly = TRUE)) {
-    BiocManager::install("randomForest")}
-  if (!requireNamespace("factoextra", quietly = TRUE)) {
-    install.packages("factoextra")}
-  
   cat("Ran through the Fun_install_libraries function.\n")
 }
 
@@ -97,15 +91,6 @@ Fun_load_libraries <- function(){
   
   library(httr)
   library(jsonlite)
-  
-  #Libraries that were used in testing different methods 
-  # but were not used in the final version:
-  #library(pcadapt)
-  #library(hugene10stv1cdf)
-  
-  #From Agi's functions:
-  library(randomForest)
-  library(factoextra)
   
   cat("Ran through the Fun_load_libraries function.\n")
 }

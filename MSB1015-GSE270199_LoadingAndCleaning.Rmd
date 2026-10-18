@@ -46,17 +46,17 @@ setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 ```
 #Library installations and loading 
 As I will be using a project (renv) for the MSB1015 project, I check first that the packages that need to be installed are installed.
-```{r library_R_file, include=FALSE}
+```{r library_R_file}
 #For cleanliness the checks, installing and loading of the various libraries is in a separate .R file. This file is assumed to be in the same map as this file (in the wd).
 source("libraries.R")
 ```
 Library installation
-```{r library_installation}
+```{r library_installation, message = FALSE}
 #Use the function to install the libraries if they are missing.
 Fun_install_libraries()
 ```
 Library loading
-```{r library_loading}
+```{r library_loading, message = FALSE}
 #Use the function to load the libraries
 Fun_load_libraries()
 ```
