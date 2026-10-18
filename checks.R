@@ -8,12 +8,13 @@
 ############################################################
 #This file has various checks in it that make the main script 
 # look bloated while just adding some feedback, so they have 
-# been placed in this seperate R script.
+# been placed in this separate R script.
 
 #TAG: If time allows split this into two files to have the
 # global environment cleaner per file instead of loading all
 # the checks even when they are not needed.
-#NOTE: Did not have time
+#NOTE: Did not have time and the amount of checks is 
+# not as many as before
 
 #####################
 ### Does the in/  ###

@@ -9,8 +9,8 @@
 #To reduce bloat in the setup section of the two files the library installations
 # and loading are done using two functions loaded in using this file.
 #This also means that all the libraries are found in a single location. Especially
-# in the Fun_load_libraries function it is easily seen what libraries are loaded 
-# into the environment.
+# in the Fun_load_libraries function below it is easily seen what libraries are loaded 
+# into the environment all in one place.
 
 #####################
 ### Download      ###
@@ -53,8 +53,8 @@ Fun_install_libraries <- function(){
     install.packages("proxy")}
   if (!requireNamespace("EnhancedVolcano", quietly = TRUE)) {
     BiocManager::install("EnhancedVolcano")}
-  if (!require("rmarkdown", quietly = TRUE)){
-    install.packages("rmarkdown")}
+  if (!require("gprofiler2", quietly = TRUE)){
+    install.packages("gprofiler2")}
   if (!require("httr", quietly = TRUE)){
     install.packages("httr")}
   if (!require("jsonlite", quietly = TRUE)){
@@ -88,7 +88,6 @@ Fun_load_libraries <- function(){
   library(proxy)
   library(EnhancedVolcano)
   library(gprofiler2)
-  
   library(httr)
   library(jsonlite)
   

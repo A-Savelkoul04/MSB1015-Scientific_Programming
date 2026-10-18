@@ -19,7 +19,7 @@ I did not find how this data was pre-normalized, just that it was.
 With the lowest non-zero being 0.7581652 and the highest being 16.49163, the data is presumable log2 transformed already. 
 To prevent adding in processing artifacts if this assumption is wrong, I will keep the data log2 transformed as much as possible.
 
-Later down the process I located a metadata file on the Science Direct online upload of the data. (https://www.sciencedirect.com/science/article/pii/S0925443925002443)
+Later down the process I located a metadata file in the supplementary for the Science Direct online upload of the paper. (https://www.sciencedirect.com/science/article/pii/S0925443925002443)
 The patient identifiers in that file do not line up with the patient identifiers in the GSE270199_COL3A1_normalizedCounts.txt.gz file or the GSM83367** numbers, so I am unable to make use of it. Also there is no additional data on the control samples as far as I could find other than that they are two male and two female samples according to the text. 
 When I infer the sex of the participants I find five inferred as male and five inferred as female, the metadata in the "Table S2. Demographics and molecular features of the sample cohort."-supplementary file implies that there should be four male and six female samples. 
 As I cannot connect "Table S2" to the data, I am not able to correct for any of the data found in "Table S2".
@@ -102,11 +102,11 @@ RUN_PLOTS <- TRUE
 
 #-----#
 #In section: inferred_sex
-#The ensembl connection occassionally has trouble being connected to. This setting specifies if the ensemble should be queried or not. 
+#The ensembl connection occassionally has trouble being connected to. This setting specifies if the ensemble should be queried or instead load genes_y_chromosome.rds from the OUTPUTS. 
   #If FALSE: Skips the query if possible. Only queries the ensemble if there is no file in the OUTPUTS yet. 
   #If TRUE: Always tried to query the ensemble, even if there is a file available already. 
-
 QUERY_ENSEMBL <- FALSE
+
 #When the QUERY_ENSEMBL is run, decide if the existing genes_y_chromosome.rds file should be overwritten or not. 
   #If TRUE: Overwrite the file when the ensembl is queried
   #If FALSE: Keep the genes_y_chromosome.rds file if it exists. If no genes_y_chromosome.rds exists it will still be created. 
@@ -127,7 +127,7 @@ allow_zeros_in_EDS_percent <- 20
   #Options:
     #"either" --> Either the EDS or the healthy group needs to pass the thresholds for the gene to be kept.
     #"both" --> Both the EDS and the healthy group need to pass the thresholds for the gene to be kept.
-    #"difference" --> The difference between the previous two options.
+    #"difference" --> The difference between the previous two options. Mostly to illustrate what gets dropped. 
 FILTERSETTING <- "either"
 
 #-----#
@@ -145,6 +145,7 @@ IMPUTE_ZEROS <- TRUE
   #Ex: zeros_for_imputation_healthy at 3 means that 3 of the 4 healthy samples
   # need to be zero for the remaining one to also be set to zero.
 #TAG: turn this into percentages if time allows
+#NOTE: Did not have time to implement the percentages
 zeros_for_imputation_EDS <- 8
 zeros_for_imputation_healthy <- 3
 
@@ -183,7 +184,7 @@ if(exists("GSE270199.meta")) cat("GSE270199.meta has been loaded \n")
 #-----# 
 
 #By default the names of the patients in the normalizedCounts and the metadata do not line up. 
-# This is not in the metadata file and needs to be manually adjusted 
+# This is not in the metadata file and needs to be manually adjusted to the GSM encodings
 # Manually copied the aligning names from https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE270199 and rename the colnames one by one before applying them.
 
 #Get the origninal colnames
@@ -212,7 +213,6 @@ colnames(GSE270199) <- GSE270199.colnames
 rm(GSE270199.colnames)
 	
 #Check that the people in GSE270199 are also in GSE270199.meta
-#Modify this check if time allows so it can be reused for the other data if it gets used.
 Fun_GSE270199_meta_check()
 ```
 #Metadata
@@ -252,6 +252,7 @@ rename <- sub("EDS patient","EDS-HT/JHS", GSE270199.redmeta[,"disease_state"])
 rename <- sub("healthy control","healthy", rename)
 GSE270199.redmeta[,"disease_state"] <- rename
 #TAG: If the other dataset ever ends up being used anyway, change the feedback below here
+#NOTE: The other dataset was not used again
 cat("The values inside GSE270199.redmeta[\"disease_state\"] have been renamed to align with the data in the metadata files of the other dataset (This other dataset remained unused):\n\tEDS patient --> EDS-HT/JHS\n\thealthy control --> healthy\n")
 
 #Break up the output
@@ -314,6 +315,7 @@ rownames(GSE270199.redmeta) <- GSE270199.redmeta$Row.names
 GSE270199.redmeta$Row.names <- NULL
 
 #Also get a combined disease and sex for the reduced metadata 
+#NOTE: This disease_sex went unused
 disease_sex <- ifelse(GSE270199.redmeta$disease_state == "EDS-HT/JHS",
                       ifelse(GSE270199.redmeta$inferred_sex == "Male",
                              "EDS_Male",
@@ -431,6 +433,7 @@ rm(keep_either, keep_both, keep_EDS, keep_healthy, i)
 #Select filtering using missingness plots
 Plot all of the different data created in the script so far to compare the different types of data. 
 *The missingness plots will create a warning, I elected to ignore this warning for now.* 
+I chose not to suppress the warning.
 ```{r missingness_plots}
 #Create color_groups to color the labels of the samples so it is easier to see what the controls are vs the patients
 color_groups <- ifelse(GSE270199.redmeta[colnames(GSE270199),"disease_state"] == "EDS-HT/JHS", "red", "black")

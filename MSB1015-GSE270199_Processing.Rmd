@@ -8,22 +8,36 @@ output: html_document
 Make sure that the previous file has been run and has saved the rds
  files (GSE270199_imputed.rds & GSE270199_redmeta.rds found 
  in the OUTPUTS location)
+ 
+#Cytoscape
+Make sure that you have Cytoscape running while running this file. 
+cytoscapePing() will stop the code if it cannot ping Cytoscape. 
+  If it gives you issues, make sure that Cytoscape is not still handling 
+   it's own startup or dealing with an update available pop-up.
+ 
 
 #The general pipeline in this file
+
 * Get a *similarity network* for the patients
+
 * *Cluster* the patients using the similarity network
+
 * Perform *Wilcoxon rank-sum test* on each feature
   --> p-value
   * Correct using *FDR*
+  
 * Get *log2FC* of each cluster vs the other using the median 
    to better deal with outliers
   --> log2FC
+  
   * Two ways:
+  
       - *Compare the cluster to each other directly* 
         --> Up- / Downregulated in one group over the other
         --> Presumably gives less overlap as the nodes used for 
              diffusion cannot overlap to begin with (either up- or 
              downregulated)
+             
       - (Not implemented) Compare the clusters to the controls and 
          then to each other
         --> (Not implemented) Up- / Downregulated in reference to 
@@ -31,17 +45,23 @@ Make sure that the previous file has been run and has saved the rds
         --> (Not implemented) Presumably finds more shared areas as 
              a node can be up- / downregulated in both of the comparisons 
              before the diffusion comparison between the groups
+             
 * Get a *selection of genes* to use for the network diffusion using filters
   * Get protein codes to give to STRING instead of ENSG codes
+  
 * Use *PCA* on only the EDS samples to build a *background network* 
    that the selected nodes are diffused over
   * Get protein codes to give to STRING instead of ENSG codes
+  
 * *Diffuse* over the network and compare the clusters to each other
   --> Unique nodes for one cluster?
   --> Nodes that both clusters diffused to?
+  
     * *INTERPRET*:
+    
       --> (Not implemented) Unique nodes (only up or only down) could 
            imply a different area of origin for some of the effects
+           
       --> Shared diffused-to nodes could show that despite originating 
            from different nodes, the same area of the PPI may be affected
 
@@ -301,6 +321,7 @@ rm(res, cluster, i, clusters_k)
 The formula used to calculate the fold change was found at:
 https://www.biostars.org/p/342756/
   --> mean(log2(Group1)) - mean(log2(Group2))
+  Modified to:
     --> median(log2(Group1)) - median(log2(Group2))
 Calculating both as median can handle outliers better on advice from Agi
 ```{r log2FC}
@@ -347,7 +368,7 @@ The pvalues themselves are not great, the adjusted pvalues are not good at all.
 At this point in the project I am running out of time and will simply disregard this issue so that I can have a full pipeline done in time. 
 ```{r volcano_plots}
 #Labels aren't readable as they either intersect or they're to small to read so they are set to zero
-  #Not specifying a lab is not possible with this function
+  #Not specifying a lab is not possible with this function as far as I could tell
 #Subtitle explaining what the lines are with often chosen standard values
 
 if (RUN_PLOTS){
@@ -496,6 +517,10 @@ if (RUN_PLOTS){
       labSize = 0)
 }
 ```
+#NOTE on the selection:
+While I am aware that, based on the feedback from the presentation, taking simply the up and the down regulated ones is not allowed, I did not have the time to re-implement another way of selecting nodes. Therefore this selection remained unchanged from what was seen in the presentation. 
+
+
 #PCA on only the EDS samples
 Display the PCA's that are used to build the background network with and then select the genes that are used to build the STRING background network.
 ```{r pca_on_disease}
@@ -506,7 +531,7 @@ data.disease_only <- data[,EDS_group]
 PCA.disease_only <- pca(object = t(as.matrix(data.disease_only)), 
                    method = "svd", nPcs = 10, center = TRUE)
 
-
+#Use either cumulative 90% variance or 10% individual variance for the selection based on the value of the setting USE_CUMULATIVE_VARIANCE
 if (!USE_CUMULATIVE_VARIANCE){
   cat("The PC's that have 10% or more variance:\n")
   print(PCA.disease_only@R2[PCA.disease_only@R2 > 0.10])
@@ -521,7 +546,9 @@ if (!USE_CUMULATIVE_VARIANCE){
 }
 
 if (RUN_PLOTS){
-  #Visualize the PC's that have 10 or more % variance
+  #Visualize the PC's that have been selected
+    #This does not visualize every possibility, simply the 'neighbor' PC
+      #Expanding this into a double loop (Ex: i loop and j loop combined) would have allowed to visualize all the possibilities but was not done due to time constraints
   for (PC in 1:length(pca_variance_selection)){
     #PC1 and PC2 are not the clearest variable names to use here, not sure what else could work better though
     PC1 <- pca_variance_selection[PC]
@@ -607,6 +634,24 @@ RCy3::commandsRun(cmd)
 
 #Get the network's SUID
 selected_networkSuid = getNetworkSuid()
+
+
+
+#Ensure the optimal zoom
+RCy3::fitContent(network = selected_networkSuid)
+
+#Get the filename
+file_name <- paste0(OUTPUT_FILE_LOCATION,"/Cytoscape_selected_nodes_STRING")
+
+#Export a PNG of the network
+RCy3::exportImage(filename = file_name,
+                  type = "PNG",
+                  resolution = 600, #600 should be the maximum allowed
+                  units = "inches", #inches should make the file larger
+                  zoom = 500, #Use the maximum zoom possible
+                  network = selected_networkSuid,
+                  overwriteFile = TRUE #It is allowed to overwrite the previous file (Default)
+)
 }
 ```
 
@@ -658,7 +703,7 @@ RCy3::exportImage(filename = file_name,
 #Diffusion
 Diffuse the proteins that were found in the selected set over the network created from the background set.
 ```{r diffusion}
-#NOTE: I would have preferred to turn this into a function so it could handle more than two clusters dynamically, but considering that only two clusters are selected this was sufficient for now
+#NOTE: I would have preferred to turn this into a function so it could handle more than two clusters dynamically and reduce the few repeated lines, but considering that only two clusters are selected this was sufficient for now considering time constraints
 
 
 #Get pre-allocated object to save the diffusion output that can be merged into
@@ -849,7 +894,7 @@ loadTableData(
     network = background_networkSuid
 )
 ```
-#Remove non-selected for singletons
+#Remove (non-selected for) singletons
 ```{r remove_singletons}
 #Get the node table from Cytoscape
 nodes <- getTableColumns(
@@ -932,7 +977,7 @@ rm(nodes, nodes_to_remove, edges, file_name)
 #Visuals
 Add in some visuals for the Cytoscape network
 ```{r cytoscape_visuals}
-#NOTE: There is some code repeated here, I feel like it would be muddled though if I used a custom function
+#NOTE: There is some functions repeated here, I feel like it would be muddled though if I used a custom function
 
 #-----Shared for all networks-----# 
 
@@ -1286,3 +1331,6 @@ for (responsetype in unique(response.results$category)){
 
 ```
 
+#Interpretation
+Interpretation can now be done using the assorted csv files.
+If you were only interested in, for example, GO Biological Processes then you would be able to selectively look at the csv with 'process' in the filename to look at GO Biological Processes. If you were interested in everything you could look at the csv with 'all' in the filename. Etc.

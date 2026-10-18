@@ -5,6 +5,11 @@
 ##########                                        ##########
 ############################################################
 
+#This file as various functions. Having them in a separate 
+# file ensures that they are not spread out over the code 
+# and are easy to be found. 
+
+
 #####################
 ### NA values     ###
 #####################
