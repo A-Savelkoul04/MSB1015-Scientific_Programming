@@ -58,26 +58,38 @@ Download the Metadata of GSE270199_COL3A1_normalizedCounts.txt.gz from https://w
 * Get a *similarity network* for the patients
 * *Cluster* the patients using the similarity network
 * Perform *Wilcoxon rank-sum test* on each feature
+
   --> p-value
   * Correct using *FDR*
 * Get *log2FC* of each cluster vs the other using the median to better deal with outliers
+
   --> log2FC
   * Two ways:
       - *Compare the cluster to each other directly* 
+
         --> Up- / Downregulated in one group over the other
+
         --> Presumably gives less overlap as the nodes used for diffusion cannot overlap to begin with (either up- or downregulated)
+
       - (Not implemented) Compare the clusters to the controls and then to each other
-        --> (Not implemented) Up- / Downregulated in reference to the controls, can then compare those to each other 
+
+        --> (Not implemented) Up- / Downregulated in reference to the controls, can then compare those to each other
+
         --> (Not implemented) Presumably finds more shared areas as a node can be up- / downregulated in both of the comparisons before the diffusion comparison between the groups
 * Get a *selection of genes* to use for the network diffusion using filters
   * Get protein codes to give to STRING instead of ENSG codes
 * Use *PCA* on only the EDS samples to build a *background network* that the selected nodes are diffused over
   * Get protein codes to give to STRING instead of ENSG codes
 * *Diffuse* over the network and compare the clusters to each other
+
   --> Unique nodes for one cluster?
+
   --> Nodes that both clusters diffused to?
+
     * *INTERPRET*:
-      --> Unique nodes (only up or only down) could imply a different area of origin for some of the effects
+
+      --> (Not implemented) Unique nodes (only up or only down) could imply a different area of origin for some of the effects
+
       --> Shared diffused-to nodes could show that despite originating from different nodes, the same area of the PPI may be affected
 
 # System the code was developed on
@@ -99,3 +111,7 @@ The stringApp extension version used was v2.2.0
 
 
 For R's sessionInfo information, please see the DevelopedOnSessionInfo.txt file available on the GitHub. 
+
+# AI Transparency Statement
+AI was used in the production of the code. Code was manually checked and adjusted to suit the needs of the project. 
+AI was not used to comment the code or write the README. 

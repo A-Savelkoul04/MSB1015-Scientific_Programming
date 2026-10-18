@@ -4,18 +4,28 @@ author: "Anne Savelkoul - i6326700"
 date: "2026-09"
 ---
 
+
+#THIS IS THE INCORRECT FILE
+This dataset was not implemented into the pipeline, please check the MSB1015-*GSE270199*_LoadingAndCleaning.Rmd for the correct LoadingAndCleaning file.
+
+As this file remained unused it has not been cleaned or checked. 
+
+
+
+
+
+
+
+
+
+
+
 #Downloading the data
-Download GSE270199_COL3A1_normalizedCounts.txt.gz from https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE270199. Unzip it and place it into the INPUT_FILE_LOCATION you specify in File locations. 
-
-Download the Metadata of GSE270199_COL3A1_normalizedCounts.txt.gz from https://www.ncbi.nlm.nih.gov/Traces/study/?acc=PRJNA1125404&o=acc_s%3Aa. Unzip it and place it into the INPUT_FILE_LOCATION you specify in File locations. 
-*RENAME IT TO "GSE270199_SraRunTable.csv"* instead of "SraRunTable.csv" to prevent multiple files being names "SraRunTable.csv".
-
 Download the 22 raw data files from https://www.ebi.ac.uk/biostudies/ArrayExpress/studies/E-GEOD-77758?query=%22hypermobility%20syndrome%22. Unzip the files and place them into the INPUT_FILE_LOCATION you specify in File locations.
 
 Download the Metadata of GEOD77758 from https://www.ebi.ac.uk/biostudies/ArrayExpress/studies/E-GEOD-77758?query=%22hypermobility%20syndrome%22 as well. Look in "MAGE-TAB Files" and download the file named "E-GEOD-77758.sdrf.txt". 
 
 *Unless specified otherwise, the code attempts to load in the default names of the files. If the names are changed in other ways then adjust the code in Load data.*
-
 
 
 #Setting the working directory (wd)

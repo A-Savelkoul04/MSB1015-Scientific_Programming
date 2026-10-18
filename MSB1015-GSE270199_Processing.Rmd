@@ -40,8 +40,8 @@ Make sure that the previous file has been run and has saved the rds
   --> Unique nodes for one cluster?
   --> Nodes that both clusters diffused to?
     * *INTERPRET*:
-      --> Unique nodes (only up or only down) could imply a different 
-           area of origin for some of the effects
+      --> (Not implemented) Unique nodes (only up or only down) could 
+           imply a different area of origin for some of the effects
       --> Shared diffused-to nodes could show that despite originating 
            from different nodes, the same area of the PPI may be affected
 
