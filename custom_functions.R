@@ -51,7 +51,7 @@ Fun_smallest_value <- function(object, object_name){
 #####################
 
 #Custom function to visualize the missingness plot in a single line
-Fun_missingness <- function(data, color_groups = NULL, title = NULL){
+Fun_missingness <- function(data, color_groups = NULL, title = NULL, SAVE_PLOT = FALSE){
   
   #If the color_groups are not given, set them back to black
   if (is.null(color_groups)){
@@ -63,9 +63,32 @@ Fun_missingness <- function(data, color_groups = NULL, title = NULL){
   data[data == 0] <- NA
   
   #Plot the missingness
-  vis_miss(data, warn_large_data=TRUE, sort_miss = FALSE) +
+  missing_plot <- vis_miss(data, warn_large_data=TRUE, sort_miss = FALSE) +
     theme(axis.text.x = element_text(size = 5, angle = 90, colour = color_groups)) +
     ggtitle(title)
+  
+  
+  #Save to PNG if SAVE_PLOT
+  if (SAVE_PLOT) {
+    #Compose the file_name
+    file_name <- c("missingness", 
+                   gsub(",","",gsub("\n","_",gsub("&","and",gsub(" ","-",tolower(title))))))
+    
+    file_name <- paste(file_name, collapse = "_")
+    file_name <- paste0(OUTPUT_FILE_LOCATION, paste0("/",file_name, ".png"))
+    
+    #Save the plot
+    ggplot2::ggsave(
+      filename = file_name,
+      plot = missing_plot,
+      width = 10,
+      height = 8,
+      units = "in",
+      dpi = 300
+    )
+  }
+  
+  return(missing_plot)
 }
 
 #####################
@@ -145,12 +168,12 @@ Fun_impute_data <- function(data.imputation,
 ### Plot PCA      ###
 ### scores        ###
 #####################
-Fun_plot_PCA_scores <- function(PCA, metadata = GSE270199.redmeta, firstPC = "PC1", secondPC = "PC2", title = NULL){
+Fun_plot_PCA_scores <- function(PCA, metadata = GSE270199.redmeta, SAVE_PLOT = FALSE, firstPC = "PC1", secondPC = "PC2", title = NULL){
   PCA.scores <- PCA@scores
   PCA.scores <- as.data.frame(PCA.scores)
   PCA.scores <- merge(x = PCA.scores, y = metadata, by = 'row.names')
   
-  p <- ggplot(PCA.scores, aes(x=eval(parse(text=firstPC)), y=eval(parse(text=secondPC)), color = disease_state, fill = inferred_sex, label=Row.names)) +
+  pca_plot <- ggplot(PCA.scores, aes(x=eval(parse(text=firstPC)), y=eval(parse(text=secondPC)), color = disease_state, fill = inferred_sex, label=Row.names)) +
             geom_point(shape = 21) + 
             scale_color_manual(values=c("red", "black")) +
             scale_fill_manual(values=c("#F8766D", "#00BFC4")) +
@@ -158,23 +181,71 @@ Fun_plot_PCA_scores <- function(PCA, metadata = GSE270199.redmeta, firstPC = "PC
             labs(x = paste0(firstPC,": ", as.numeric(PCA@R2[firstPC])*100,"%"), 
                  y = paste0(secondPC,": ", as.numeric(PCA@R2[secondPC])*100,"%"),
                  title = title)
-  print(p)
+  
+  #Save to PNG if SAVE_PLOT
+  if (SAVE_PLOT) {
+    #Compose the file_name
+    file_name <- c("pca-scores", 
+                   gsub(",","",gsub("\n","_",gsub("&","and",gsub(" ","-",tolower(title))))),
+                   firstPC, 
+                   secondPC)
+    
+    file_name <- paste(file_name, collapse = "_")
+    file_name <- paste0(OUTPUT_FILE_LOCATION, paste0("/",file_name, ".png"))
+    
+    #Save the plot
+    ggplot2::ggsave(
+      filename = file_name,
+      plot = pca_plot,
+      width = 10,
+      height = 8,
+      units = "in",
+      dpi = 300
+    )
+  }
+  
+  
+  return(pca_plot)
 }
 
 #####################
 ### Plot PCA      ###
 ### loadings      ###
 #####################
-Fun_plot_PCA_loadings <- function(PCA, firstPC = "PC1", secondPC = "PC2", title = NULL){
+Fun_plot_PCA_loadings <- function(PCA, SAVE_PLOT = FALSE, firstPC = "PC1", secondPC = "PC2", title = NULL){
   PCA.loadings <- PCA@loadings
   PCA.loadings <- as.data.frame(PCA.loadings)
   
-  p <- ggplot(PCA.loadings, aes(x=eval(parse(text=firstPC)), y=eval(parse(text=secondPC)))) +
+  pca_plot <- ggplot(PCA.loadings, aes(x=eval(parse(text=firstPC)), y=eval(parse(text=secondPC)))) +
       geom_point() +
       labs(x = paste0(firstPC,": ", as.numeric(PCA@R2[firstPC])*100,"%"), 
            y = paste0(secondPC,": ", as.numeric(PCA@R2[secondPC])*100,"%"),
            title = title)
-  print(p)
+  
+  #Save to PNG if SAVE_PLOT
+  if (SAVE_PLOT) {
+    #Compose the file_name
+    file_name <- c("pca-loadings", 
+                   gsub(",","",gsub("\n","_",gsub("&","and",gsub(" ","-",tolower(title))))),
+                   firstPC, 
+                   secondPC)
+    
+    file_name <- paste(file_name, collapse = "_")
+    file_name <- paste0(OUTPUT_FILE_LOCATION, paste0("/",file_name, ".png"))
+    
+    #Save the plot
+    ggplot2::ggsave(
+      filename = file_name,
+      plot = pca_plot,
+      width = 10,
+      height = 8,
+      units = "in",
+      dpi = 300
+    )
+  }
+  
+  
+  return(pca_plot)
 }
 
 
@@ -188,6 +259,7 @@ Fun_plot_biplot <- function(PCA,
                             firstPC = "PC1", 
                             secondPC = "PC2", 
                             top = 20,
+                            SAVE_PLOT = FALSE,
                             title = NULL){
   #I declare that I made use of ChatGPT to help make some of this code and then manually modified it to my liking. 
   
@@ -228,7 +300,7 @@ Fun_plot_biplot <- function(PCA,
     )
   
   
-  p <- ggplot(PCA.scores, aes(eval(parse(text=firstPC)), eval(parse(text=secondPC)))) +
+  pca_plot <- ggplot(PCA.scores, aes(eval(parse(text=firstPC)), eval(parse(text=secondPC)))) +
       geom_point(shape = 21, aes(color = disease_state, fill = inferred_sex)) +
       scale_color_manual(values=c("red", "black")) +
       scale_fill_manual(values=c("#F8766D", "#00BFC4")) +
@@ -250,7 +322,31 @@ Fun_plot_biplot <- function(PCA,
       geom_hline( yintercept = 0, linetype = "dashed", alpha = 0.5 ) + 
       geom_vline( xintercept = 0, linetype = "dashed", alpha = 0.5 )
   
-  print(p)
+  #Save to PNG if SAVE_PLOT
+  if (SAVE_PLOT) {
+    #Compose the file_name
+    file_name <- c("pca-biplot", 
+                   gsub(",","",gsub("\n","_",gsub("&","and",gsub(" ","-",tolower(title))))),
+                   firstPC, 
+                   secondPC,
+                   paste0("top", top))
+    
+    file_name <- paste(file_name, collapse = "_")
+    file_name <- paste0(OUTPUT_FILE_LOCATION, paste0("/",file_name, ".png"))
+    
+    #Save the plot
+    ggplot2::ggsave(
+      filename = file_name,
+      plot = pca_plot,
+      width = 10,
+      height = 8,
+      units = "in",
+      dpi = 300
+    )
+  }
+  
+  
+  return(pca_plot)
 }
 
 #####################
@@ -258,6 +354,7 @@ Fun_plot_biplot <- function(PCA,
 #####################
 
 Fun_heatmap <- function(data_matrix = t(data),
+                        SAVE_PLOT = FALSE,
                         clusters = 2,
                         col_side = NULL,
                         row_side = NULL,
@@ -285,6 +382,11 @@ Fun_heatmap <- function(data_matrix = t(data),
   legend_labels <- NULL
   legend_colors <- NULL
   
+  #Start to note the save name
+  if (SAVE_PLOT){
+    save_name <- NULL
+  }
+  
   #Set sides to something so it isn't NULL and can be compared
   if(is.null(col_side)){
     col_side <- "nothing"
@@ -302,6 +404,10 @@ Fun_heatmap <- function(data_matrix = t(data),
     #Note the data in the legend
     legend_labels <- c(legend_labels, "Female", "Male")
     legend_colors <- c(legend_colors, "#F8766D", "#00BFC4")
+    #Note the save name if the heatmap is saved
+    if (SAVE_PLOT){
+      save_name <- c(save_name, "sex")
+    }
     
     if (col_side == "sex"){
       #col is sex
@@ -320,6 +426,11 @@ Fun_heatmap <- function(data_matrix = t(data),
     #Note the data in the legend
     legend_labels <- c(legend_labels, "EDS-HT/JHS", "Healthy")
     legend_colors <- c(legend_colors, "red", "black")
+    
+    #Note the save name if the heatmap is saved
+    if (SAVE_PLOT){
+      save_name <- c(save_name, "disease")
+    }
     
     if (col_side == "disease"){
       #col is disease
@@ -342,6 +453,11 @@ Fun_heatmap <- function(data_matrix = t(data),
     #Note the data in the legend
     legend_labels <- c(legend_labels, "EDS-HT/JHS Male", "EDS-HT/JHS Female", "Healthy Male", "Healthy Female")
     legend_colors <- c(legend_colors, "maroon", "red", "darkblue", "blue")
+    
+    #Note the save name if the heatmap is saved
+    if (SAVE_PLOT){
+      save_name <- c(save_name, "disease-sex")
+    }
     
     if (col_side == "disease_sex"){
       #col is disease_sex
@@ -385,6 +501,11 @@ Fun_heatmap <- function(data_matrix = t(data),
     legend_labels <- c(legend_labels, paste0("Cluster ", 1:clusters))
     legend_colors <- c(legend_colors, cluster_colors[1:clusters])
     
+    #Note the save name if the heatmap is saved
+    if (SAVE_PLOT){
+      save_name <- c(save_name, paste0("cluster",clusters))
+    }
+    
     if (col_side == "cluster"){
       #col is color_cluster
       col_color <- color_cluster
@@ -395,26 +516,111 @@ Fun_heatmap <- function(data_matrix = t(data),
   }
   
   
-  #Visualize the heatmap
-  heatmap(sim_matrix, 
-          ColSideColors = col_color, 
-          RowSideColors = row_color,
-          main = title,
-          xlab = xlab, 
-          ylab = ylab,
-          cexCol = 0.5,
-          cexRow = 0.5,
-          hclustfun = function(x) hclust(x, method = "complete"))
+  # Function to draw the heatmap
+  draw_heatmap <- function() {
+    
+    heatmap(sim_matrix, 
+            ColSideColors = col_color, 
+            RowSideColors = row_color,
+            main = title,
+            xlab = xlab, 
+            ylab = ylab,
+            cexCol = 0.5,
+            cexRow = 0.5,
+            hclustfun = function(x) hclust(x, method = "complete"))
+    
+    if (!is.null(legend_labels)) {
+      legend(x = "topright", 
+             legend = legend_labels, 
+             fill = legend_colors)
+    }}
+
   
+  # Display the heatmap
+  draw_heatmap()
   
-  #If there is legend data to display, display it
-  if (!is.null(legend_labels)){
-    legend(x="topright", legend=legend_labels, 
-           fill=legend_colors)
+  if(SAVE_PLOT){
+    #Save the plot as a PNG if SAVE_PLOT
+    
+    #Turn save_name into something that can be used
+    ifelse(is.null(save_name),
+           save_name <- "no_labels",
+           save_name <- paste(gsub(" ","-", tolower(title)),paste(save_name, collapse = "_"), sep = "_"))
+    
+    #Get the file_name set up
+    file_name <- paste0(OUTPUT_FILE_LOCATION,"/heatmap_",save_name,".png")
+    
+    #Save the file as a png
+    png(file_name, width = 1200, height = 1000, res = 150)
+    on.exit(dev.off(), add = TRUE)
+    draw_heatmap()
+    
   }
+
 }
+
+#####################
+### Volcano plot  ###
+#####################
+
+Fun_volcano <- function(data,
+                        lab,
+                        x,
+                        y,
+                        SAVE_PLOT = FALSE,
+                        title = NULL,
+                        subtitle = NULL,
+                        pCutoff = 0.05,
+                        FCcutoff = 1,
+                        pointSize = 1.0,
+                        labSize = 0) {
+  
+  #Build the plot
+  volcano_plot <- EnhancedVolcano(
+    data,
+    lab = lab,
+    x = x,
+    y = y,
+    title = title,
+    subtitle = subtitle,
+    pCutoff = pCutoff,
+    FCcutoff = FCcutoff,
+    pointSize = pointSize,
+    labSize = labSize)
+  
+  
+  #Save to PNG if SAVE_PLOT
+  if (SAVE_PLOT) {
+    #Compose the file_name
+    file_name <- c("volcano", 
+                   gsub("\n","_",gsub("&","and",gsub(" ","-",tolower(title)))),
+                   paste0("pval-",gsub("\\.","_",as.character(pCutoff))), 
+                   paste0("FC-", gsub("\\.","_",as.character(FCcutoff)))
+    )
+
+    file_name <- paste(file_name, collapse = "_")
+    file_name <- paste0(OUTPUT_FILE_LOCATION, paste0("/",file_name, ".png"))
+    
+    #Save the plot
+    ggplot2::ggsave(
+      filename = file_name,
+      plot = volcano_plot,
+      width = 10,
+      height = 8,
+      units = "in",
+      dpi = 300
+    )
+  }
+  
+  #Return plot object
+  return(volcano_plot)
+}
+
+
+
 #####################
 ### Feedback      ###
 #####################
 
 cat("custom_functions.R loaded.\n")
+  

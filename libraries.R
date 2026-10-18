@@ -54,8 +54,13 @@ Fun_install_libraries <- function(){
   if (!requireNamespace("EnhancedVolcano", quietly = TRUE)) {
     BiocManager::install("EnhancedVolcano")}
   if (!require("rmarkdown", quietly = TRUE)){
-    install.packages("gprofiler2")}
+    install.packages("rmarkdown")}
+  if (!require("httr", quietly = TRUE)){
+    install.packages("httr")}
+  if (!require("jsonlite", quietly = TRUE)){
+    install.packages("jsonlite")}
   
+
   if (!requireNamespace("randomForest", quietly = TRUE)) {
     BiocManager::install("randomForest")}
   if (!requireNamespace("factoextra", quietly = TRUE)) {
@@ -89,6 +94,9 @@ Fun_load_libraries <- function(){
   library(proxy)
   library(EnhancedVolcano)
   library(gprofiler2)
+  
+  library(httr)
+  library(jsonlite)
   
   #Libraries that were used in testing different methods 
   # but were not used in the final version:

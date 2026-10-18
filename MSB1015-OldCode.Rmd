@@ -6,6 +6,30 @@ output: html_document
 ---
 
 #This file includes old code that didn't end up getting used
+  *This file is not suitable for running it*
+
+
+#NOTE: Moved the advice to the OldCode to preserve it
+#Advice from Martina:
+(to make it so that I can use this project for MSB1014 as well)
+* Remove controls and only compare the patients
+* Get the top features from a PCA to build the background network 
+* Similarity network of the patients
+  * Correlate the patients into 2 or 3 clusters to find patient groups
+  
+#Advice from Agi:
+For two independent groups you should use the Mann–Whitney U test (Wilcoxon rank-sum test) can be applied to each feature. In addition to the p-value, report the fold change (FC) to describe the magnitude and direction of the difference. Since you have outliers use median instead of mean.  Because many features are tested please correct the p-values for multiple testing using the Benjamini–Hochberg FDR procedure.
+
+#Advice from Agi:
+(data[feature, group])
+median is for the FC calculation between the groups
+
+Looking at the variability of the genes
+You will not expect the variability to go to an unreasenably high value
+
+imput data --> use PCA as dimentionallity reduction --> use the scores for similarity / other clustering / affinity propagation clustering (available in R), creates the clusters
+PCA still contains the features but only contains (ex. 90%) get clusters, go back to real data and color code the cluster to what was found in the reduction on the real data
+CHECK THAT THERE IS NO STRUCTURE IN THE RESIDUALS
 
 #PCA on only disease
 ```{r PCA_on_disease}

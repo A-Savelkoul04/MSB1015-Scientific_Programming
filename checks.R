@@ -112,6 +112,22 @@ Fun_settings_check1 <- function(){
     stop()
   }   
   #-----#
+  #In section: inferred_sex
+  #QUERY_ENSEMBL needs to be TRUE or FALSE
+  if (QUERY_ENSEMBL == TRUE | QUERY_ENSEMBL == FALSE){
+    cat("QUERY_ENSEMBL has a valid value.\n")
+  } else {
+    warning("QUERY_ENSEMBL does NOT have a valid value.\nStopping code.\n")
+    stop()
+  }
+  #OVERRIDE_Y_CHRO_SAVED_FILE needs to be TRUE or FALSE
+  if (OVERRIDE_Y_CHRO_SAVED_FILE == TRUE | OVERRIDE_Y_CHRO_SAVED_FILE == FALSE){
+    cat("OVERRIDE_Y_CHRO_SAVED_FILE has a valid value.\n")
+  } else {
+    warning("OVERRIDE_Y_CHRO_SAVED_FILE does NOT have a valid value.\nStopping code.\n")
+    stop()
+  }
+  
 }
 #Settings check for the second file
 Fun_settings_check2 <- function(){
@@ -123,6 +139,40 @@ Fun_settings_check2 <- function(){
     warning("RUN_PLOTS does NOT have a valid value.\nStopping code.\n")
     stop()
   }
+  #In section: pca_on_disease
+  #USE_CUMULATIVE_VARIANCE needs to be TRUE or FALSE
+  if (USE_CUMULATIVE_VARIANCE == TRUE | USE_CUMULATIVE_VARIANCE == FALSE){
+    cat("USE_CUMULATIVE_VARIANCE has a valid value.\n")
+  } else {
+    warning("USE_CUMULATIVE_VARIANCE does NOT have a valid value.\nStopping code.\n")
+    stop()
+  }
+  #In section: cytoscape_selected_network
+  #VISUALIZE_SELECTED_NETWORK needs to be TRUE or FALSE
+  if (VISUALIZE_SELECTED_NETWORK == TRUE | VISUALIZE_SELECTED_NETWORK == FALSE){
+    cat("VISUALIZE_SELECTED_NETWORK has a valid value.\n")
+  } else {
+    warning("VISUALIZE_SELECTED_NETWORK does NOT have a valid value.\nStopping code.\n")
+    stop()
+  }
+  #In section: remove_singletons
+  #REMOVE_ALL_SINGLETONS needs to be TRUE or FALSE
+  if (REMOVE_ALL_SINGLETONS == TRUE | REMOVE_ALL_SINGLETONS == FALSE){
+    cat("REMOVE_ALL_SINGLETONS has a valid value.\n")
+  } else {
+    warning("REMOVE_ALL_SINGLETONS does NOT have a valid value.\nStopping code.\n")
+    stop()
+  }
+  
+  #similarity_merge_value needs to be double or NULL
+  if (is.null(similarity_merge_value) | is.double(similarity_merge_value)){
+    cat("similarity_merge_value has a valid value.\n")
+  } else {
+    warning("similarity_merge_value does NOT have a valid value.\nPlease provide a double or NULL as input.\nStopping code.\n")
+    stop()
+  }
+  
+  
 }
 
 #####################

@@ -10,11 +10,11 @@ output: html_document
 Download GSE270199_COL3A1_normalizedCounts.txt.gz from https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE270199. Unzip it and place it into the INPUT_FILE_LOCATION you specify in File locations. 
 
 Download the Metadata of GSE270199_COL3A1_normalizedCounts.txt.gz from https://www.ncbi.nlm.nih.gov/Traces/study/?acc=PRJNA1125404&o=acc_s%3Aa. Unzip it and place it into the INPUT_FILE_LOCATION you specify in File locations. 
-*RENAME IT TO "GSE270199_SraRunTable.csv"* instead of "SraRunTable.csv" to prevent multiple files being names "SraRunTable.csv".
+*RENAME IT TO "GSE270199_SraRunTable.csv"* instead of "SraRunTable.csv" to prevent multiple files being names "SraRunTable.csv". (This was done with the assumption that I would be working with multiple datasets down the line)
 
-*Unless specified otherwise, the code attempts to load in the default names of the files. If the names are changed in other ways then adjust the code in Load data.*
+*Unless specified otherwise, the code attempts to load in the above specified default names and locations of the files. If the names are changed in other ways then adjust the code in Load data.*
 
-
+#Note about the data
 I did not find how this data was pre-normalized, just that it was.
 With the lowest non-zero being 0.7581652 and the highest being 16.49163, the data is presumable log2 transformed already. 
 To prevent adding in processing artifacts if this assumption is wrong, I will keep the data log2 transformed as much as possible.
@@ -25,7 +25,7 @@ When I infer the sex of the participants I find five inferred as male and five i
 As I cannot connect "Table S2" to the data, I am not able to correct for any of the data found in "Table S2".
 
 #Note:
-If there are sections with a "#TAG: [description]" then that means that that code has been tagged for needing changes made / to make things that might need to be changed easier to find. 
+If there are sections with a "#TAG: [description]" then that means that that code has been tagged for needing changes made / to make things that might need to be changed easier to find. Any remaining TAG's left in the code indicate thing I would have like to implement but didn't manage to. 
 
 #Clear the global environment
   Clear the environment to reduce the chance of issues on reruns
@@ -60,17 +60,6 @@ Library loading
 #Use the function to load the libraries
 Fun_load_libraries()
 ```
-#TAG: Remove section if I cannot get Agi's functions to run
-#Load Agi's URF functions
-  Adds the functions:
-    script_URF
-    unsupervisedRF_proximityadd
-    doublecentering
-```{r}
-#The R session aborted very quickly after trying to play with the functions, so I am leaving Agi's functions alone for now.
-#source("URF.R")
-```
-
 #Load in the checks R file
 There are some functions to run checks for various things in this separate .R file.
 These are not in the main code as they create quite a bit of bloat that makes the code more difficult to read.
@@ -113,11 +102,14 @@ RUN_PLOTS <- TRUE
 
 #-----#
 #In section: inferred_sex
-#TAG: Add description
-#TAG: Add to check
+#The ensembl connection occassionally has trouble being connected to. This setting specifies if the ensemble should be queried or not. 
+  #If FALSE: Skips the query if possible. Only queries the ensemble if there is no file in the OUTPUTS yet. 
+  #If TRUE: Always tried to query the ensemble, even if there is a file available already. 
+
 QUERY_ENSEMBL <- FALSE
-#TAG: Add description
-#TAG: Add to check
+#When the QUERY_ENSEMBL is run, decide if the existing genes_y_chromosome.rds file should be overwritten or not. 
+  #If TRUE: Overwrite the file when the ensembl is queried
+  #If FALSE: Keep the genes_y_chromosome.rds file if it exists. If no genes_y_chromosome.rds exists it will still be created. 
 OVERRIDE_Y_CHRO_SAVED_FILE <- TRUE
   
 #-----#
@@ -126,9 +118,11 @@ OVERRIDE_Y_CHRO_SAVED_FILE <- TRUE
 #Set the percentage (0 to 100) of zeros that are allowed in the healthy group
   #There are 4 values, setting it to 25 means that 3/4 need to be non-zero
 allow_zeros_in_healthy_percent <- 25
+
 #Set the percentage (0 to 100) of zeros that are allowed in the EDS group
   #There are 10 values, setting it to 20 means that 8/10 need to be non-zero
 allow_zeros_in_EDS_percent <- 20
+
 #Set which filtering you would like to continue with.
   #Options:
     #"either" --> Either the EDS or the healthy group needs to pass the thresholds for the gene to be kept.
@@ -140,9 +134,11 @@ FILTERSETTING <- "either"
 #In section: imputation
 #Set if you would like to impute the data (TRUE/FALSE) to 80% of the mean of non-zero values in the group.
 IMPUTE_MISSING <- TRUE
+
 #Set if you would like to impute the data (TRUE/FALSE) to zero if enough data within that group is missing. 
   #How much data needs to be missing is set in the zeros_for_imputation settings below. 
 IMPUTE_ZEROS <- TRUE
+
 #When you impute, how many samples withing the group need to be missing for the remainder to be set to zero.
   #Ex: zeros_for_imputation_EDS at 8 means that 8 of the 10 patient samples
   # need to be zero for the remaining two to also be set to zero.
@@ -151,7 +147,6 @@ IMPUTE_ZEROS <- TRUE
 #TAG: turn this into percentages if time allows
 zeros_for_imputation_EDS <- 8
 zeros_for_imputation_healthy <- 3
-
 
 ```
 #Settings check
@@ -267,24 +262,6 @@ cat("\n-----\n")
 rm(keep, rename, column)
 
 ```
-#TAG: testing something, remove again 
-testing how the data changes if I assume it was log2 transformed 
-```{r}
-# Check summary stats
-#summary(GSE270199)
-
-# If you suspect log2(x + 1):
-#GSE270199 <- 2^GSE270199 - 1
-#head(GSE270199)
-
-
-#testing something else
-#GSE270199 <- GSE270199[rownames(GSE270199) != c("ENSG00000115414","ENSG00000108821"),]
-
-```
-
-
-
 #Detect Y chromosome markers to get male/female information for the metadata
 ```{r inferred_sex}
 #Only query the ensemble if the file to be loaded in doesn't exist or if the QUERY_ENSEMBL setting is set to TRUE
@@ -348,6 +325,9 @@ disease_sex <- ifelse(GSE270199.redmeta$disease_state == "EDS-HT/JHS",
 #Add the disease_sex to the reduced metadata
 GSE270199.redmeta["disease_sex"] <- disease_sex
 
+#Remove things from the global environment
+rm(genes_y_chromosome, genes_y_chromosome_in_data, disease_sex)
+
 ```
 ```{r verify_sex_imputation}
 #Get y_counts for in the histogram 
@@ -356,27 +336,29 @@ colnames(y_counts) <- "y_gene_counts"
 y_counts$inferred_sex <- inferred_sex$inferred_sex
 
 #Visualize a histogram
-ggplot(y_counts,aes(x=y_gene_counts, fill = inferred_sex)) +
-  geom_histogram(binwidth = 15) + 
-  labs(title = "Clear division on who is inferred as what sex",
-       x = "Summed y chromosome gene counts",
-       y = "Amount of samples")
+y_plot <- ggplot(y_counts,aes(x=y_gene_counts, fill = inferred_sex)) +
+                geom_histogram(binwidth = 15) + 
+                labs(title = "Clear division on who is inferred as what sex",
+                     x = "Summed y chromosome gene counts",
+                     y = "Amount of samples")
+print(y_plot)
 
-#Remove y_counts again as it is not used anywhere and just clogs up the global environment
-rm(y_counts)
-```
+#Build the file_name
+file_name <- c("imputed_sex_histogram")
+file_name <- paste0(OUTPUT_FILE_LOCATION, "/", file_name, ".png")
 
+#Save the plot
+    ggplot2::ggsave(
+      filename = file_name,
+      plot = y_plot,
+      width = 10,
+      height = 8,
+      units = "in",
+      dpi = 300
+    )
 
-#TAG: REMOVE THIS, THIS WAS A TEST ON HOW THE DATA RESPONDED TO GSM8336700 BEING REMOVED
-  The answer was confusing, not in a way I want to deal with
-```{r temp_test}
-#GSE270199 <- GSE270199[colnames(GSE270199) != "GSM8336700"]
-#
-#temp <- as.data.frame(GSE270199.redmeta[grep("GSM8336700", rownames(GSE270199.redmeta), invert = TRUE),"disease_state"])
-#colnames(temp) <- "disease_state"
-#rownames(temp) <- rownames(GSE270199.redmeta)[grep("GSM8336700", rownames(GSE270199.redmeta), invert = TRUE)]
-#
-#GSE270199.redmeta <- temp
+#Remove objects as they are not used anywhere and just clog up the global environment
+rm(y_genes, inferred_sex, y_counts, file_name, y_plot)
 ```
 #Missing values
 Check if the loaded data has any missing values. 
@@ -397,7 +379,7 @@ Fun_smallest_value(GSE270199, "GSE270199")
 #Break up the output
 cat("\n-----\n")
 
-Fun_NA_check(GSE270199.meta, "GSE270199.meta")
+Fun_NA_check(GSE270199.redmeta, "GSE270199.redmeta")
 
 #Break up the output
 cat("\n-----\n")
@@ -409,11 +391,12 @@ GSE270199 has many zeros, so those values need to be processed.
 healthy_group <- rownames(GSE270199.redmeta)[grep("healthy", GSE270199.redmeta[,"disease_state"])]
 EDS_group <- rownames(GSE270199.redmeta)[grep("EDS-HT", GSE270199.redmeta[,"disease_state"])]
 
+
 #Convert the percentage set in the settings to a number that is used for the comparison
 allow_zeros_healthy <- (length(healthy_group)*(allow_zeros_in_healthy_percent/100))
-
 #Convert the percentage to a number that is used for the comparison
 allow_zeros_EDS <- (length(EDS_group)*(allow_zeros_in_EDS_percent/100))
+
 
 #Loop over GSE270199 to find the ones that have too many zeros
 keep_either <- NULL
@@ -429,6 +412,8 @@ for (i in 1:nrow(GSE270199)){
   keep_both <- c(keep_both, keep_EDS & keep_healthy)
 }
 
+
+
 #Get the filtered dataframes based on the keep's that were made
 #Filtered of the dataframe if either of the groups pass the threshold
 GSE270199.filtered_either <- GSE270199[keep_either,]
@@ -436,6 +421,7 @@ GSE270199.filtered_either <- GSE270199[keep_either,]
 GSE270199.filtered_both <- GSE270199[keep_both,]
 #Filtered of the dataframe if only one of the groups pass the threshold
 GSE270199.filtered_difference <- GSE270199[(!keep_both & keep_either),]
+
 
 
 #Remove the temp objects from the environment
@@ -451,22 +437,32 @@ color_groups <- ifelse(GSE270199.redmeta[colnames(GSE270199),"disease_state"] ==
 
 #Plot the missingness plots
 if (RUN_PLOTS){
-  Fun_missingness(GSE270199, color_groups, "GSE270199")
-} else {
-  cat("Plot not visualized due to RUN_PLOTS being set to FALSE.\n")
-}
-if (RUN_PLOTS){
-  Fun_missingness(GSE270199.filtered_either, color_groups, "GSE270199 filtered, minimum one passes")
-} else {
-  cat("Plot not visualized due to RUN_PLOTS being set to FALSE.\n")
-}
-if (RUN_PLOTS){
-  Fun_missingness(GSE270199.filtered_both, color_groups, "GSE270199 filtered, both pass")
-} else {
-  cat("Plot not visualized due to RUN_PLOTS being set to FALSE.\n")
-}
-if (RUN_PLOTS){
-  Fun_missingness(GSE270199.filtered_difference, color_groups, "GSE270199 difference between min one and both")
+  missing_plot <- Fun_missingness(GSE270199, 
+                                  color_groups, 
+                                  "GSE270199", 
+                                  SAVE_PLOT = TRUE)
+  print(missing_plot)
+
+  missing_plot <- Fun_missingness(GSE270199.filtered_either, 
+                                  color_groups, 
+                                  "GSE270199 filtered, minimum one passes", 
+                                  SAVE_PLOT = TRUE)
+  print(missing_plot)
+  
+  missing_plot <- Fun_missingness(GSE270199.filtered_both, 
+                                  color_groups, 
+                                  "GSE270199 filtered, both pass", 
+                                  SAVE_PLOT = TRUE)
+  print(missing_plot)
+  
+  missing_plot <- Fun_missingness(GSE270199.filtered_difference, 
+                                  color_groups, 
+                                  "GSE270199 difference between min one and both", 
+                                  SAVE_PLOT = TRUE)
+  print(missing_plot)
+  
+  #Remove from the environment
+  rm(missing_plot)
 } else {
   cat("Plot not visualized due to RUN_PLOTS being set to FALSE.\n")
 }
@@ -491,38 +487,41 @@ PCA.filtered_difference <- pca(object = t(as.matrix(GSE270199.filtered_differenc
 Visualize the scores of the first two PC's
 ```{r pca_plots_1_2}
 if (RUN_PLOTS){
-  Fun_plot_PCA_scores(PCA = PCA.original, 
-                      metadata = GSE270199.redmeta, 
+  pca_plot <- Fun_plot_PCA_scores(PCA = PCA.original, 
+                      metadata = GSE270199.redmeta,  
+                      SAVE_PLOT = TRUE,
                       firstPC = "PC1", 
                       secondPC = "PC2", 
                       title = "Original PCA scores")
-} else {
-  cat("Plot not visualized due to RUN_PLOTS being set to FALSE.\n")
-}
-if (RUN_PLOTS){
-  Fun_plot_PCA_scores(PCA = PCA.filtered_either, 
-                      metadata = GSE270199.redmeta, 
+  print(pca_plot)
+
+  pca_plot <- Fun_plot_PCA_scores(PCA = PCA.filtered_either, 
+                      metadata = GSE270199.redmeta,  
+                      SAVE_PLOT = TRUE,
                       firstPC = "PC1", 
                       secondPC = "PC2", 
                       title = "PCA scores, either filtered")
-} else {
-  cat("Plot not visualized due to RUN_PLOTS being set to FALSE.\n")
-}
-if (RUN_PLOTS){
-  Fun_plot_PCA_scores(PCA = PCA.filtered_both, 
-                      metadata = GSE270199.redmeta, 
+  print(pca_plot)
+  
+  pca_plot <- Fun_plot_PCA_scores(PCA = PCA.filtered_both, 
+                      metadata = GSE270199.redmeta,  
+                      SAVE_PLOT = TRUE,
                       firstPC = "PC1", 
                       secondPC = "PC2", 
                       title = "PCA scores, both filtered")
-} else {
-  cat("Plot not visualized due to RUN_PLOTS being set to FALSE.\n")
-}
-if (RUN_PLOTS){
-  Fun_plot_PCA_scores(PCA = PCA.filtered_difference, 
-                      metadata = GSE270199.redmeta, 
+  print(pca_plot)
+
+  pca_plot <- Fun_plot_PCA_scores(PCA = PCA.filtered_difference, 
+                      metadata = GSE270199.redmeta,  
+                      SAVE_PLOT = TRUE,
                       firstPC = "PC1", 
                       secondPC = "PC2", 
                       title = "PCA scores difference between either and both filters")
+  print(pca_plot)
+  
+  #Remove pca_plot to clean the environment
+  rm(pca_plot)
+  
 } else {
   cat("Plot not visualized due to RUN_PLOTS being set to FALSE.\n")
 }
@@ -530,34 +529,39 @@ if (RUN_PLOTS){
 Visualize the loadings of the first two PC's
 ```{r pca_plots_1_3}
 if (RUN_PLOTS){
-  Fun_plot_PCA_loadings(PCA = PCA.original, 
+  pca_plot <- Fun_plot_PCA_loadings(PCA = PCA.original,
+                        SAVE_PLOT = TRUE,
                         firstPC = "PC1", 
                         secondPC = "PC2", 
-                        title = "Original PCA scores")
-} else {
-  cat("Plot not visualized due to RUN_PLOTS being set to FALSE.\n")
-}
-if (RUN_PLOTS){
-  Fun_plot_PCA_loadings(PCA = PCA.filtered_either, 
+                        title = "Original PCA loadings")
+  print(pca_plot)
+  
+
+  pca_plot <- Fun_plot_PCA_loadings(PCA = PCA.filtered_either, 
+                        SAVE_PLOT = TRUE,
                         firstPC = "PC1", 
                         secondPC = "PC2", 
-                        title = "PCA scores, either filtered")
-} else {
-  cat("Plot not visualized due to RUN_PLOTS being set to FALSE.\n")
-}
-if (RUN_PLOTS){
-  Fun_plot_PCA_loadings(PCA = PCA.filtered_both, 
+                        title = "PCA loadings, either filtered")
+  print(pca_plot)
+
+  pca_plot <- Fun_plot_PCA_loadings(PCA = PCA.filtered_both, 
+                        SAVE_PLOT = TRUE,
                         firstPC = "PC1", 
                         secondPC = "PC2", 
-                        title = "PCA scores, both filtered")
-} else {
-  cat("Plot not visualized due to RUN_PLOTS being set to FALSE.\n")
-}
-if (RUN_PLOTS){
-  Fun_plot_PCA_loadings(PCA = PCA.filtered_difference, 
+                        title = "PCA loadings, both filtered")
+  print(pca_plot)
+
+  pca_plot <- Fun_plot_PCA_loadings(PCA = PCA.filtered_difference, 
+                        SAVE_PLOT = TRUE,
                         firstPC = "PC1", 
                         secondPC = "PC2", 
-                        title = "PCA scores difference between either and both filters")
+                        title = "PCA loadings difference between either and both filters")
+  
+  print(pca_plot)
+  
+  #Remove pca_plot to clean the environment
+  rm(pca_plot)
+  
 } else {
   cat("Plot not visualized due to RUN_PLOTS being set to FALSE.\n")
 }
@@ -566,38 +570,45 @@ if (RUN_PLOTS){
 Check the top most influential genes using a biplot
 ```{r biplots}
 if (RUN_PLOTS){
-  Fun_plot_biplot(PCA = PCA.original, 
-                  top = 50, 
+  pca_plot <- Fun_plot_biplot(PCA = PCA.original, 
+                  top = 50,
+                  SAVE_PLOT = TRUE,
                   firstPC = "PC1", 
                   secondPC = "PC2", 
                   title = "Biplot using the top 50 genes for the non-processed data.")
-} else {
-  cat("Plot not visualized due to RUN_PLOTS being set to FALSE.\n")
-}
-if (RUN_PLOTS){
-  Fun_plot_biplot(PCA = PCA.filtered_either, 
+
+  print(pca_plot)
+  
+  pca_plot <- Fun_plot_biplot(PCA = PCA.filtered_either, 
                   top = 50, 
+                  SAVE_PLOT = TRUE,
                   firstPC = "PC1", 
                   secondPC = "PC2", 
                   title = "Biplot using the top 50 genes for the either filtering.")
-} else {
-  cat("Plot not visualized due to RUN_PLOTS being set to FALSE.\n")
-}
-if (RUN_PLOTS){
-  Fun_plot_biplot(PCA = PCA.filtered_both, 
+
+  print(pca_plot)
+  
+  pca_plot <- Fun_plot_biplot(PCA = PCA.filtered_both, 
                   top = 50, 
+                  SAVE_PLOT = TRUE,
                   firstPC = "PC1", 
                   secondPC = "PC2", 
                   title = "Biplot using the top 50 genes for the both filtering.")
-} else {
-  cat("Plot not visualized due to RUN_PLOTS being set to FALSE.\n")
-}
-if (RUN_PLOTS){
-  Fun_plot_biplot(PCA = PCA.filtered_difference, 
+  
+  print(pca_plot)
+  
+  pca_plot <- Fun_plot_biplot(PCA = PCA.filtered_difference, 
                   top = 50, 
+                  SAVE_PLOT = TRUE,
                   firstPC = "PC1", 
                   secondPC = "PC2", 
                   title = "Biplot using the top 50 genes for the difference filtering.")
+  
+  print(pca_plot)
+  
+  #Remove pca_plot to clean the environment
+  rm(pca_plot)
+  
 } else {
   cat("Plot not visualized due to RUN_PLOTS being set to FALSE.\n")
 }
@@ -666,12 +677,18 @@ color_groups <- ifelse(GSE270199.redmeta[colnames(GSE270199),"disease_state"] ==
 
 #Visualize the missingness plots
 if (RUN_PLOTS){
-  Fun_missingness(GSE270199.filtered, color_groups, "Before imputation")
-} else {
-  cat("Plot not visualized due to RUN_PLOTS being set to FALSE.\n")
-}
-if (RUN_PLOTS){
-  Fun_missingness(GSE270199.imputed, color_groups, "After imputation")
+  missing_plot <- Fun_missingness(GSE270199.filtered, color_groups, "Before imputation", SAVE_PLOT = TRUE)
+  print(missing_plot)
+  
+  missing_plot <- Fun_missingness(GSE270199.imputed, color_groups, "After imputation", SAVE_PLOT = TRUE)
+  print(missing_plot)
+  
+  #Remove from the environment 
+  rm(missing_plot)
+  
+  #color_groups is no longer used after this point
+  rm(color_groups)
+  
 } else {
   cat("Plot not visualized due to RUN_PLOTS being set to FALSE.\n")
 }
@@ -698,20 +715,25 @@ PCA.imputed <- pca(object = t(as.matrix(GSE270199.imputed)),
 Visualize the scores of the first two PCs
 ```{r pca_plots_2_2}
 if (RUN_PLOTS){
-  Fun_plot_PCA_scores(PCA = PCA.filtered, 
+  pca_plot <- Fun_plot_PCA_scores(PCA = PCA.filtered, 
                       metadata = GSE270199.redmeta, 
+                      SAVE_PLOT = TRUE, 
                       firstPC = "PC1", 
                       secondPC = "PC2", 
                       title = "PCA scores before imputation")
-} else {
-  cat("Plot not visualized due to RUN_PLOTS being set to FALSE.\n")
-}
-if (RUN_PLOTS){
-  Fun_plot_PCA_scores(PCA = PCA.imputed, 
-                      metadata = GSE270199.redmeta, 
+  print(pca_plot)
+
+  
+  pca_plot <- Fun_plot_PCA_scores(PCA = PCA.imputed, 
+                      metadata = GSE270199.redmeta,  
+                      SAVE_PLOT = TRUE,
                       firstPC = "PC1", 
                       secondPC = "PC2", 
                       title = "PCA scores after imputation")
+  print(pca_plot)
+  
+  #Remove pca_plot from the environment
+  rm(pca_plot)
 } else {
   cat("Plot not visualized due to RUN_PLOTS being set to FALSE.\n")
 }
@@ -719,18 +741,22 @@ if (RUN_PLOTS){
 Visualize the loadings of the first two PCs
 ```{r pca_plots_2_3}
 if (RUN_PLOTS){
-  Fun_plot_PCA_loadings(PCA = PCA.filtered, 
+  pca_plot <- Fun_plot_PCA_loadings(PCA = PCA.filtered, 
                         firstPC = "PC1", 
                         secondPC = "PC2", 
                         title = "PCA loadings before imputation")
-} else {
-  cat("Plot not visualized due to RUN_PLOTS being set to FALSE.\n")
-}
-if (RUN_PLOTS){
-  Fun_plot_PCA_loadings(PCA = PCA.imputed, 
+
+  print(pca_plot)
+  
+  pca_plot <- Fun_plot_PCA_loadings(PCA = PCA.imputed, 
                         firstPC = "PC1", 
                         secondPC = "PC2", 
                         title = "PCA loadings after imputation")
+  
+  print(pca_plot)
+  
+  #Clean pca_plot from the environment
+  rm(pca_plot)
 } else {
   cat("Plot not visualized due to RUN_PLOTS being set to FALSE.\n")
 }
@@ -739,20 +765,25 @@ if (RUN_PLOTS){
 Compare how the biplot has changed due to the imputation
 ```{r biplots}
 if (RUN_PLOTS){
-  Fun_plot_biplot(PCA = PCA.filtered, 
+  pca_plot <- Fun_plot_biplot(PCA = PCA.filtered, 
                   top = 50, 
                   firstPC = "PC1", 
                   secondPC = "PC2", 
                   title = "Biplot using the top 50 genes for the filtered data.")
-} else {
-  cat("Plots not visualized due to RUN_PLOTS being set to FALSE.\n")
-}
-if (RUN_PLOTS){
-  Fun_plot_biplot(PCA = PCA.imputed, 
+  
+  print(pca_plot)
+  
+
+  pca_plot <- Fun_plot_biplot(PCA = PCA.imputed, 
                   top = 50, 
                   firstPC = "PC1", 
                   secondPC = "PC2", 
                   title = "Biplot using the top 50 genes for the imputed data.")
+  
+  print(pca_plot)
+  
+  #Remove pca_plot from the environment
+  rm(pca_plot)
 } else {
   cat("Plots not visualized due to RUN_PLOTS being set to FALSE.\n")
 }
